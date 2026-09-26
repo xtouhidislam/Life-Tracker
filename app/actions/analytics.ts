@@ -48,17 +48,17 @@ export async function getOverviewAnalyticsAction(
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Default baseline values
-    let totalXp = 2840;
-    let level = 12;
-    let streak = 14;
-    let totalTasksCompleted = 38;
-    let totalTasksCount = 44;
-    let totalHabitsCompleted = 62;
-    let totalFocusMinutes = 2310;
-    let totalFocusSessions = 52;
-    let totalExpenses = 32450;
-    let totalBudget = 50000;
+    // Default clean baseline values (all starting at zero)
+    let totalXp = 0;
+    let level = 1;
+    let streak = 0;
+    let totalTasksCompleted = 0;
+    let totalTasksCount = 0;
+    let totalHabitsCompleted = 0;
+    let totalFocusMinutes = 0;
+    let totalFocusSessions = 0;
+    let totalExpenses = 0;
+    let totalBudget = 0;
 
     if (user) {
       // 1. Fetch user stats
@@ -69,12 +69,12 @@ export async function getOverviewAnalyticsAction(
         .single();
 
       if (stats) {
-        totalXp = Number(stats.total_xp) || totalXp;
-        level = stats.current_level || level;
-        streak = stats.current_streak || streak;
-        totalTasksCompleted = stats.total_tasks_completed || totalTasksCompleted;
-        totalHabitsCompleted = stats.total_habits_completed || totalHabitsCompleted;
-        totalFocusMinutes = stats.total_focus_minutes || totalFocusMinutes;
+        totalXp = stats.total_xp != null ? Number(stats.total_xp) : 0;
+        level = stats.current_level != null ? Number(stats.current_level) : 1;
+        streak = stats.current_streak != null ? Number(stats.current_streak) : 0;
+        totalTasksCompleted = stats.total_tasks_completed != null ? Number(stats.total_tasks_completed) : 0;
+        totalHabitsCompleted = stats.total_habits_completed != null ? Number(stats.total_habits_completed) : 0;
+        totalFocusMinutes = stats.total_focus_minutes != null ? Number(stats.total_focus_minutes) : 0;
       }
 
       // 2. Fetch tasks count
@@ -83,9 +83,21 @@ export async function getOverviewAnalyticsAction(
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id);
 
-      if (tasksCount) totalTasksCount = Math.max(tasksCount, totalTasksCompleted);
+      if (tasksCount != null) {
+        totalTasksCount = tasksCount;
+      }
 
-      // 3. Fetch expenses
+      // 3. Fetch focus sessions count
+      const { count: focusSessionsCount } = await supabase
+        .from("focus_sessions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      if (focusSessionsCount != null) {
+        totalFocusSessions = focusSessionsCount;
+      }
+
+      // 4. Fetch expenses
       const { data: expRows } = await supabase
         .from("expenses")
         .select("amount")
@@ -94,43 +106,50 @@ export async function getOverviewAnalyticsAction(
       if (expRows && expRows.length > 0) {
         totalExpenses = expRows.reduce((acc, curr) => acc + Number(curr.amount), 0);
       }
+
+      // 5. Default budget allowance (50,000 BDT baseline across categories)
+      totalBudget = 50000;
     }
 
     const taskCompletionRate = totalTasksCount > 0
       ? Math.round((totalTasksCompleted / totalTasksCount) * 100)
-      : 86;
+      : 0;
 
-    const habitConsistencyRate = 91;
+    const habitConsistencyRate = totalHabitsCompleted > 0
+      ? Math.min(100, totalHabitsCompleted * 5)
+      : 0;
     const totalFocusHours = Math.round((totalFocusMinutes / 60) * 10) / 10;
     const averageFocusMinutes = totalFocusSessions > 0
       ? Math.round(totalFocusMinutes / totalFocusSessions)
-      : 44;
-    const budgetUtilizationPct = Math.min(100, Math.round((totalExpenses / totalBudget) * 100));
+      : 0;
+    const budgetUtilizationPct = totalBudget > 0
+      ? Math.min(100, Math.round((totalExpenses / totalBudget) * 100))
+      : 0;
 
-    // Domains distribution
+    // Domains distribution (zeroed until user performs tracked deep work)
     const domains: DomainDistribution[] = [
       {
         name: "Zenin AI & Deep Coding",
-        hours: Math.round(totalFocusHours * 0.44 * 10) / 10 || 16.5,
-        percentage: 44,
+        hours: totalFocusHours > 0 ? Math.round(totalFocusHours * 0.44 * 10) / 10 : 0,
+        percentage: totalFocusHours > 0 ? 44 : 0,
         color: "#154D38",
       },
       {
         name: "Office & Operations",
-        hours: Math.round(totalFocusHours * 0.28 * 10) / 10 || 12.0,
-        percentage: 28,
+        hours: totalFocusHours > 0 ? Math.round(totalFocusHours * 0.28 * 10) / 10 : 0,
+        percentage: totalFocusHours > 0 ? 28 : 0,
         color: "#0D9488",
       },
       {
         name: "Study & Skill Tree",
-        hours: Math.round(totalFocusHours * 0.16 * 10) / 10 || 5.5,
-        percentage: 16,
+        hours: totalFocusHours > 0 ? Math.round(totalFocusHours * 0.16 * 10) / 10 : 0,
+        percentage: totalFocusHours > 0 ? 16 : 0,
         color: "#10B981",
       },
       {
         name: "Trading & Finance",
-        hours: Math.round(totalFocusHours * 0.12 * 10) / 10 || 4.5,
-        percentage: 12,
+        hours: totalFocusHours > 0 ? Math.round(totalFocusHours * 0.12 * 10) / 10 : 0,
+        percentage: totalFocusHours > 0 ? 12 : 0,
         color: "#F59E0B",
       },
     ];
@@ -169,83 +188,174 @@ export async function getOverviewAnalyticsAction(
 }
 
 /**
- * Generate trend points calibrated for Day, Week, Month, Year
+ * Generate trend points calibrated for Day, Week, Month, Year (clean zeroes for fresh profile)
  */
 function generateTrendPoints(range: TimeRange): DayPerformancePoint[] {
-  const now = new Date();
-
   if (range === "day") {
     return [
-      { label: "06:00", dateStr: "06:00", completionRate: 100, focusMinutes: 0, xpEarned: 15 },
-      { label: "09:00", dateStr: "09:00", completionRate: 90, focusMinutes: 60, xpEarned: 25 },
-      { label: "12:00", dateStr: "12:00", completionRate: 85, focusMinutes: 90, xpEarned: 35 },
-      { label: "15:00", dateStr: "15:00", completionRate: 80, focusMinutes: 45, xpEarned: 20 },
-      { label: "18:00", dateStr: "18:00", completionRate: 88, focusMinutes: 75, xpEarned: 30 },
-      { label: "21:00", dateStr: "21:00", completionRate: 95, focusMinutes: 60, xpEarned: 40, isToday: true },
+      { label: "06:00", dateStr: "06:00", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+      { label: "09:00", dateStr: "09:00", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+      { label: "12:00", dateStr: "12:00", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+      { label: "15:00", dateStr: "15:00", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+      { label: "18:00", dateStr: "18:00", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+      { label: "21:00", dateStr: "21:00", completionRate: 0, focusMinutes: 0, xpEarned: 0, isToday: true },
     ];
   }
 
   if (range === "week") {
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const rates = [84, 76, 92, 80, 88, 94, 60];
-    const mins = [120, 90, 150, 110, 140, 160, 45];
-    const xps = [45, 35, 65, 40, 55, 70, 20];
-
     return days.map((day, idx) => ({
       label: day,
       dateStr: day,
-      completionRate: rates[idx],
-      focusMinutes: mins[idx],
-      xpEarned: xps[idx],
-      isToday: idx === 5,
+      completionRate: 0,
+      focusMinutes: 0,
+      xpEarned: 0,
+      isToday: idx === (new Date().getDay() + 6) % 7,
     }));
   }
 
   if (range === "month") {
     return [
-      { label: "Week 1", dateStr: "W1", completionRate: 82, focusMinutes: 520, xpEarned: 220 },
-      { label: "Week 2", dateStr: "W2", completionRate: 88, focusMinutes: 610, xpEarned: 260 },
-      { label: "Week 3", dateStr: "W3", completionRate: 91, focusMinutes: 680, xpEarned: 310 },
-      { label: "Week 4", dateStr: "W4", completionRate: 86, focusMinutes: 590, xpEarned: 280, isToday: true },
+      { label: "Week 1", dateStr: "W1", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+      { label: "Week 2", dateStr: "W2", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+      { label: "Week 3", dateStr: "W3", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+      { label: "Week 4", dateStr: "W4", completionRate: 0, focusMinutes: 0, xpEarned: 0, isToday: true },
     ];
   }
 
   // Year (Quarters)
   return [
-    { label: "Q1", dateStr: "Q1", completionRate: 82, focusMinutes: 2400, xpEarned: 950 },
-    { label: "Q2", dateStr: "Q2", completionRate: 86, focusMinutes: 2800, xpEarned: 1100 },
-    { label: "Q3", dateStr: "Q3", completionRate: 92, focusMinutes: 3200, xpEarned: 1450, isToday: true },
+    { label: "Q1", dateStr: "Q1", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+    { label: "Q2", dateStr: "Q2", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+    { label: "Q3", dateStr: "Q3", completionRate: 0, focusMinutes: 0, xpEarned: 0, isToday: true },
     { label: "Q4", dateStr: "Q4", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
   ];
 }
 
 /**
- * Fallback analytics object
+ * Fallback analytics object with clean initial zeroed state
  */
 function getMockAnalyticsData(range: TimeRange): OverviewAnalyticsData {
   return {
     timeRange: range,
-    totalXp: 2840,
-    level: 12,
-    streak: 14,
-    taskCompletionRate: 87,
-    totalTasksCompleted: 38,
-    totalTasksCount: 44,
-    habitConsistencyRate: 91,
-    totalHabitsCompleted: 62,
-    totalFocusHours: 38.5,
-    totalFocusSessions: 52,
-    averageFocusMinutes: 44,
-    totalExpenses: 32450,
-    budgetUtilizationPct: 65,
+    totalXp: 0,
+    level: 1,
+    streak: 0,
+    taskCompletionRate: 0,
+    totalTasksCompleted: 0,
+    totalTasksCount: 0,
+    habitConsistencyRate: 0,
+    totalHabitsCompleted: 0,
+    totalFocusHours: 0,
+    totalFocusSessions: 0,
+    averageFocusMinutes: 0,
+    totalExpenses: 0,
+    budgetUtilizationPct: 0,
     domains: [
-      { name: "Zenin AI & Deep Coding", hours: 16.5, percentage: 44, color: "#154D38" },
-      { name: "Office & Operations", hours: 12.0, percentage: 28, color: "#0D9488" },
-      { name: "Study & Skill Tree", hours: 5.5, percentage: 16, color: "#10B981" },
-      { name: "Trading & Finance", hours: 4.5, percentage: 12, color: "#F59E0B" },
+      { name: "Zenin AI & Deep Coding", hours: 0, percentage: 0, color: "#154D38" },
+      { name: "Office & Operations", hours: 0, percentage: 0, color: "#0D9488" },
+      { name: "Study & Skill Tree", hours: 0, percentage: 0, color: "#10B981" },
+      { name: "Trading & Finance", hours: 0, percentage: 0, color: "#F59E0B" },
     ],
     trendPoints: generateTrendPoints(range),
   };
+}
+
+/**
+ * Complete Data & Stats Reset Action:
+ * Reverts player stats to Level 1, 0 XP, 0 streak, and resets completions.
+ */
+export async function resetUserStatsAction(): Promise<{
+  success: boolean;
+  message: string;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: true, message: "Stats reset to clean zeroed baseline." };
+    }
+
+    // 1. Reset user_stats row to Level 1, 0 XP, 0 streak
+    await supabase
+      .from("user_stats")
+      .upsert({
+        user_id: user.id,
+        total_xp: 0,
+        current_level: 1,
+        current_streak: 0,
+        longest_streak: 0,
+        total_tasks_completed: 0,
+        total_habits_completed: 0,
+        total_focus_minutes: 0,
+        last_active_date: null,
+      });
+
+    // 2. Clear xp_events
+    await supabase.from("xp_events").delete().eq("user_id", user.id);
+
+    // 3. Clear focus_sessions
+    await supabase.from("focus_sessions").delete().eq("user_id", user.id);
+
+    // 4. Reset tasks completion status
+    await supabase
+      .from("tasks")
+      .update({ is_completed: false, completed_at: null })
+      .eq("user_id", user.id);
+
+    // 5. Clear expenses
+    await supabase.from("expenses").delete().eq("user_id", user.id);
+
+    // 6. Reset goal_milestones via goals
+    const { data: userGoals } = await supabase
+      .from("goals")
+      .select("id")
+      .eq("user_id", user.id);
+
+    if (userGoals && userGoals.length > 0) {
+      const goalIds = userGoals.map((g) => g.id);
+      await supabase
+        .from("goal_milestones")
+        .update({ is_completed: false, completed_at: null, status: "pending" })
+        .in("goal_id", goalIds);
+
+      await supabase
+        .from("goals")
+        .update({ progress_percentage: 0, status: "in_progress" })
+        .eq("user_id", user.id);
+    }
+
+    // 7. Clear habit completions & reset habit streaks
+    const { data: userHabits } = await supabase
+      .from("habits")
+      .select("id")
+      .eq("user_id", user.id);
+
+    if (userHabits && userHabits.length > 0) {
+      const habitIds = userHabits.map((h) => h.id);
+      await supabase
+        .from("habit_completions")
+        .delete()
+        .in("habit_id", habitIds);
+
+      await supabase
+        .from("habits")
+        .update({ current_streak: 0, longest_streak: 0 })
+        .eq("user_id", user.id);
+    }
+
+    return {
+      success: true,
+      message: "All player stats and activities successfully reset to zero!",
+    };
+  } catch (err: any) {
+    console.error("resetUserStatsAction error:", err);
+    return { success: false, message: "Failed to reset stats", error: err.message };
+  }
 }
 
 /**

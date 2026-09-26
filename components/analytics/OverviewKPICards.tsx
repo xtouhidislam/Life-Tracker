@@ -30,7 +30,7 @@ export function OverviewKPICards({ data }: OverviewKPICardsProps) {
 
           <div className="mt-4 flex items-center gap-2">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/15 text-emerald-100 border border-white/20">
-              <span>Level {data.level} Master &middot; 🔥 {data.streak} Day Streak</span>
+              <span>Level {data.level} {data.level >= 10 ? "Master" : data.level >= 5 ? "Adept" : "Novice"} &middot; 🔥 {data.streak} Day Streak</span>
             </span>
           </div>
         </div>

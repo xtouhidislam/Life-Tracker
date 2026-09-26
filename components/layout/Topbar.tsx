@@ -89,7 +89,7 @@ export function Topbar() {
     .slice(0, 2)
     .toUpperCase() || "TQ";
 
-  const streak = stats?.current_streak ?? 14;
+  const streak = stats?.current_streak ?? 0;
 
   return (
     <header className="h-16 sticky top-0 z-20 bg-white border-b border-[#EBECEF] px-4 md:px-8 flex items-center justify-between">

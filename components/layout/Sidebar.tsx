@@ -24,9 +24,16 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-const PRIMARY_MENU = [
+interface MenuItem {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: string;
+}
+
+const PRIMARY_MENU: MenuItem[] = [
   { name: "Dashboard", href: "/today", icon: LayoutDashboard },
-  { name: "Tasks", href: "/tasks", icon: CheckSquare, badge: "12+" },
+  { name: "Tasks", href: "/tasks", icon: CheckSquare },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Analytics", href: "/overview", icon: BarChart3 },
   { name: "Habits", href: "/habits", icon: Flame },
@@ -46,15 +53,15 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { stats, signOut } = useAuth();
 
-  const level = stats?.current_level ?? 12;
-  const streak = stats?.current_streak ?? 14;
-  const totalXp = stats?.total_xp ?? 2840;
+  const level = stats?.current_level ?? 1;
+  const streak = stats?.current_streak ?? 0;
+  const totalXp = stats?.total_xp ?? 0;
 
   const nextLevelXp = 50 * level * level + 50 * level;
   const prevLevelXp = 50 * (level - 1) * (level - 1) + 50 * (level - 1);
   const xpInCurrentLevel = Math.max(0, totalXp - prevLevelXp);
   const xpNeededForLevel = Math.max(1, nextLevelXp - prevLevelXp);
-  const progressPct = Math.min(100, Math.round((xpInCurrentLevel / xpNeededForLevel) * 100)) || 78;
+  const progressPct = Math.min(100, Math.round((xpInCurrentLevel / xpNeededForLevel) * 100)) || 0;
 
   return (
     <aside
@@ -195,7 +202,7 @@ export function Sidebar() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-emerald-200 flex items-center gap-1.5">
               <Trophy className="h-3.5 w-3.5 text-amber-300" />
-              Level {level} Master
+              Level {level} {level >= 10 ? "Master" : level >= 5 ? "Adept" : "Novice"}
             </span>
             <span className="text-[11px] font-semibold text-emerald-300 font-mono">
               {progressPct}%

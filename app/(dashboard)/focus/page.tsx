@@ -29,9 +29,9 @@ export default function FocusPage() {
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [sessions, setSessions] = useState<FocusSessionRecord[]>([]);
-  const [totalMinutes, setTotalMinutes] = useState(75);
-  const [totalSessions, setTotalSessions] = useState(2);
-  const [totalXp, setTotalXp] = useState(30);
+  const [totalMinutes, setTotalMinutes] = useState(0);
+  const [totalSessions, setTotalSessions] = useState(0);
+  const [totalXp, setTotalXp] = useState(0);
 
   // Toast
   const [showXpToast, setShowXpToast] = useState(false);

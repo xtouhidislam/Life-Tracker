@@ -95,14 +95,14 @@ export default function TodayPage() {
   }, [tasks, todayStr]);
 
   const completedTasksCount = tasks.filter((t) => t.is_completed).length;
-  const totalTasksCount = tasks.length || 1;
+  const totalTasksCount = tasks.length;
 
   const completedHabitsCount = habits.filter((h) => h.is_completed_today).length;
-  const totalHabitsCount = habits.length || 1;
+  const totalHabitsCount = habits.length;
 
   const totalActions = totalTasksCount + totalHabitsCount;
   const completedActions = completedTasksCount + completedHabitsCount;
-  const dailyLifeScore = Math.round((completedActions / totalActions) * 100);
+  const dailyLifeScore = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0;
 
   const routineState = useMemo(() => {
     const blocks = routineBlocks.length > 0
@@ -144,7 +144,7 @@ export default function TodayPage() {
     setTasks((prev) => [newTask, ...prev]);
   };
 
-  const streak = stats?.current_streak ?? 14;
+  const streak = stats?.current_streak ?? 0;
 
   return (
     <div className="space-y-6 max-w-7xl pb-12 font-sans select-none">

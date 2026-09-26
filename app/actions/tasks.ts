@@ -55,8 +55,8 @@ const DEFAULT_INITIAL_TASKS: Omit<TaskItem, "user_id">[] = [
     due_time: "11:00",
     estimated_duration_minutes: 90,
     is_recurring: false,
-    is_completed: true,
-    completed_at: new Date().toISOString(),
+    is_completed: false,
+    completed_at: null,
   },
   {
     id: "init-task-2",
@@ -70,8 +70,8 @@ const DEFAULT_INITIAL_TASKS: Omit<TaskItem, "user_id">[] = [
     due_time: "14:00",
     estimated_duration_minutes: 45,
     is_recurring: false,
-    is_completed: true,
-    completed_at: new Date().toISOString(),
+    is_completed: false,
+    completed_at: null,
   },
   {
     id: "init-task-3",

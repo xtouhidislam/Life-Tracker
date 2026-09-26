@@ -28,38 +28,12 @@ export async function getFocusSessionsAction() {
     const todayStr = new Date().toISOString().split("T")[0];
 
     if (!user) {
-      // Demo fallback records
-      const demoSessions: FocusSessionRecord[] = [
-        {
-          id: "demo-f1",
-          task_id: null,
-          task_title: "FastAPI Support Ticket Backend API",
-          duration_seconds: 1500, // 25 min
-          environment_sound: "forest",
-          notes: "Core ticket route models and validation schemas",
-          xp_earned: 10,
-          started_at: `${todayStr}T07:15:00Z`,
-          completed_at: `${todayStr}T07:40:00Z`,
-        },
-        {
-          id: "demo-f2",
-          task_id: null,
-          task_title: "pgvector Semantic Search & Embeddings",
-          duration_seconds: 3000, // 50 min
-          environment_sound: "rain",
-          notes: "Implemented Cosine distance and chunking pipeline",
-          xp_earned: 20,
-          started_at: `${todayStr}T11:10:00Z`,
-          completed_at: `${todayStr}T12:00:00Z`,
-        },
-      ];
-
       return {
         success: true,
-        sessions: demoSessions,
-        totalMinutesToday: 75,
-        totalSessionsToday: 2,
-        totalXpToday: 30,
+        sessions: [],
+        totalMinutesToday: 0,
+        totalSessionsToday: 0,
+        totalXpToday: 0,
       };
     }
 
@@ -110,9 +84,9 @@ export async function getFocusSessionsAction() {
     return {
       success: true,
       sessions: [],
-      totalMinutesToday: 75,
-      totalSessionsToday: 2,
-      totalXpToday: 30,
+      totalMinutesToday: 0,
+      totalSessionsToday: 0,
+      totalXpToday: 0,
     };
   }
 }

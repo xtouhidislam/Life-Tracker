@@ -60,7 +60,7 @@ export function HabitHeatmap({ habits, daysCount = 90 }: HabitHeatmapProps) {
     return count;
   }, [countByDate]);
 
-  const consistencyPct = Math.round((activeDaysCount / daysCount) * 100) || 88;
+  const consistencyPct = daysCount > 0 ? Math.round((activeDaysCount / daysCount) * 100) : 0;
 
   const getColorClass = (count: number) => {
     if (count === 0) return "bg-zinc-100 border-zinc-200/80";

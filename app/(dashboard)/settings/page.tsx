@@ -13,10 +13,12 @@ import {
   AlertCircle,
   KeyRound,
   Sparkles,
+  RotateCcw,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotification } from "@/components/providers/NotificationProvider";
 import { createClient } from "@/lib/supabase/client";
+import { resetUserStatsAction } from "@/app/actions/analytics";
 import { soundEffects } from "@/lib/audio/sound-effects";
 import { triggerHaptic } from "@/lib/ui/haptics";
 import { triggerCelebration } from "@/lib/ui/celebration";
@@ -32,6 +34,7 @@ export default function SettingsPage() {
   const [particlesEnabled, setParticlesEnabled] = useState(true);
   const [browserPushEnabled, setBrowserPushEnabled] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -75,6 +78,30 @@ export default function SettingsPage() {
       setErrorMessage(message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleResetStats = async () => {
+    if (!window.confirm("Are you sure you want to reset all your stats, focus time, and completions to zero?")) {
+      return;
+    }
+    setIsResetting(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    try {
+      const res = await resetUserStatsAction();
+      if (res.success) {
+        await refreshProfile();
+        setSuccessMessage(res.message);
+        triggerHaptic("success");
+      } else {
+        setErrorMessage(res.error || res.message);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reset stats";
+      setErrorMessage(message);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -350,13 +377,33 @@ export default function SettingsPage() {
             </div>
             <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/80 space-y-1">
               <span className="text-zinc-400 font-medium">Player Progression</span>
-              <div className="font-semibold text-amber-600">
-                Level {stats?.current_level ?? 12} &middot; {stats?.total_xp ?? 2840} Total XP
+              <div className="font-semibold text-emerald-800">
+                Level {stats?.current_level ?? 1} &middot; {stats?.total_xp ?? 0} Total XP
               </div>
             </div>
           </div>
 
-          <div className="pt-2 flex items-center justify-between">
+          {/* Reset All Stats & Progress */}
+          <div className="pt-2 pb-2 border-t border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold text-zinc-900">Reset All Stats & Progress</div>
+              <div className="text-xs text-zinc-500">
+                Reset your XP, level, streaks, and completed activities back to clean initial zeroes.
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetStats}
+              disabled={isResetting}
+              className="gap-2 text-xs border-amber-300 text-amber-900 hover:bg-amber-50 shrink-0"
+            >
+              <RotateCcw className={`h-3.5 w-3.5 ${isResetting ? "animate-spin" : ""}`} />
+              <span>{isResetting ? "Resetting..." : "Reset Stats to Zero"}</span>
+            </Button>
+          </div>
+
+          <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">
             <div className="text-xs text-zinc-500">
               Terminate your authenticated session on this browser.
             </div>

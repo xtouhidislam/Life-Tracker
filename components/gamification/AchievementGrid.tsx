@@ -33,8 +33,8 @@ const ACHIEVEMENTS: Achievement[] = [
     tier: "bronze",
     xpBonus: 25,
     icon: CheckCircle2,
-    isUnlocked: true,
-    unlockedAt: "Sep 20, 2026",
+    isUnlocked: false,
+    progressText: "0 / 1 Completed",
   },
   {
     id: "tasks_10",
@@ -43,8 +43,8 @@ const ACHIEVEMENTS: Achievement[] = [
     tier: "bronze",
     xpBonus: 50,
     icon: Award,
-    isUnlocked: true,
-    unlockedAt: "Sep 24, 2026",
+    isUnlocked: false,
+    progressText: "0 / 10 Completed",
   },
   {
     id: "streak_7_days",
@@ -53,8 +53,8 @@ const ACHIEVEMENTS: Achievement[] = [
     tier: "silver",
     xpBonus: 100,
     icon: Flame,
-    isUnlocked: true,
-    unlockedAt: "Sep 25, 2026",
+    isUnlocked: false,
+    progressText: "0 / 7 Days",
   },
   {
     id: "focus_10_hours",
@@ -63,8 +63,8 @@ const ACHIEVEMENTS: Achievement[] = [
     tier: "silver",
     xpBonus: 150,
     icon: Timer,
-    isUnlocked: true,
-    unlockedAt: "Sep 26, 2026",
+    isUnlocked: false,
+    progressText: "0 / 10 Hours",
   },
   {
     id: "tasks_50",
@@ -74,7 +74,7 @@ const ACHIEVEMENTS: Achievement[] = [
     xpBonus: 150,
     icon: Medal,
     isUnlocked: false,
-    progressText: "14 / 50 Completed",
+    progressText: "0 / 50 Completed",
   },
   {
     id: "streak_30_days",
@@ -84,7 +84,7 @@ const ACHIEVEMENTS: Achievement[] = [
     xpBonus: 300,
     icon: Trophy,
     isUnlocked: false,
-    progressText: "14 / 30 Days",
+    progressText: "0 / 30 Days",
   },
   {
     id: "zenin_milestone_1",
@@ -94,7 +94,7 @@ const ACHIEVEMENTS: Achievement[] = [
     xpBonus: 500,
     icon: Sparkles,
     isUnlocked: false,
-    progressText: "72% In Progress",
+    progressText: "0% In Progress",
   },
 ];
 

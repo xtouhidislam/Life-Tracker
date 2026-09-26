@@ -53,78 +53,7 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Personal & Health", color: "#6366F1", default_budget: 14000 },
 ];
 
-const INITIAL_EXPENSES: ExpenseItem[] = [
-  {
-    id: "init-exp-1",
-    description: "Domain & Server VPS Hosting",
-    category_name: "Education & Tech Tools",
-    category_color: "#154D38",
-    amount: 1450,
-    currency: "BDT",
-    date: new Date().toISOString().split("T")[0],
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "init-exp-2",
-    description: "Weekly Grocery & Meal Prep",
-    category_name: "Food & Dining",
-    category_color: "#10B981",
-    amount: 2850,
-    currency: "BDT",
-    date: new Date().toISOString().split("T")[0],
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "init-exp-3",
-    description: "High-Speed Fiber Broadband",
-    category_name: "Bills & Utilities",
-    category_color: "#F59E0B",
-    amount: 1200,
-    currency: "BDT",
-    date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: "init-exp-4",
-    description: "Motorbike Fuel Tank Refill",
-    category_name: "Transport & Fuel",
-    category_color: "#0D9488",
-    amount: 1100,
-    currency: "BDT",
-    date: new Date(Date.now() - 172800000).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: "init-exp-5",
-    description: "Coffee & Study Session",
-    category_name: "Food & Dining",
-    category_color: "#10B981",
-    amount: 420,
-    currency: "BDT",
-    date: new Date(Date.now() - 259200000).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 259200000).toISOString(),
-  },
-  {
-    id: "init-exp-6",
-    description: "OpenAI API Platform Credits",
-    category_name: "Education & Tech Tools",
-    category_color: "#154D38",
-    amount: 2200,
-    currency: "BDT",
-    date: new Date(Date.now() - 345600000).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 345600000).toISOString(),
-  },
-  {
-    id: "init-exp-7",
-    description: "Pharmacy & Vitamins",
-    category_name: "Personal & Health",
-    category_color: "#6366F1",
-    amount: 850,
-    currency: "BDT",
-    date: new Date(Date.now() - 432000000).toISOString().split("T")[0],
-    created_at: new Date(Date.now() - 432000000).toISOString(),
-  },
-];
+const INITIAL_EXPENSES: ExpenseItem[] = [];
 
 /**
  * Retrieve user expenses, computed categories, and summary metrics.
@@ -148,7 +77,7 @@ export async function getExpensesAction(
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return computeFallbackDataset(INITIAL_EXPENSES);
+      return computeFallbackDataset([]);
     }
 
     // 1. Fetch user categories
@@ -180,7 +109,7 @@ export async function getExpensesAction(
     const { data: dbExpenses, error: expError } = await expenseQuery;
 
     if (expError || !dbExpenses || dbExpenses.length === 0) {
-      return computeFallbackDataset(INITIAL_EXPENSES);
+      return computeFallbackDataset([]);
     }
 
     // Create category lookup map
