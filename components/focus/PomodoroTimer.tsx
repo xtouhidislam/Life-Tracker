@@ -25,6 +25,7 @@ import { triggerHaptic } from "@/lib/ui/haptics";
 import { triggerCelebration } from "@/lib/ui/celebration";
 import { recordFocusSessionAction } from "@/app/actions/focus";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { addLocalFocusSession } from "@/lib/storage/local-store";
 
 interface PomodoroTimerProps {
   initialTitle?: string;
@@ -191,10 +192,25 @@ export function PomodoroTimer({
       activeTaskTitle
     );
 
+    const earnedXp = res.earnedXp || Math.round(sessionSeconds / 180);
+
+    // Persist immediately to local storage
+    addLocalFocusSession({
+      id: "focus-" + Date.now(),
+      task_id: selectedTaskId,
+      task_title: activeTaskTitle,
+      duration_seconds: sessionSeconds,
+      environment_sound: selectedSound,
+      notes: null,
+      xp_earned: earnedXp,
+      started_at: new Date(Date.now() - sessionSeconds * 1000).toISOString(),
+      completed_at: new Date().toISOString(),
+    });
+
     await refreshProfile();
 
     if (onSessionCompleted) {
-      onSessionCompleted(res.earnedXp, selectedMinutes);
+      onSessionCompleted(earnedXp, selectedMinutes);
     }
 
     setSecondsRemaining(selectedMinutes * 60);

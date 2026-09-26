@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import {
   Target,
   Sparkles,
@@ -19,8 +19,9 @@ import { PomodoroTimer } from "@/components/focus/PomodoroTimer";
 import { FocusHistoryList } from "@/components/focus/FocusHistoryList";
 import { XPToast } from "@/components/tasks/XPToast";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { getLocalFocusSessions, getLocalTasks } from "@/lib/storage/local-store";
 
-export default function FocusPage() {
+function FocusContent() {
   const searchParams = useSearchParams();
   const initialTitleParam = searchParams.get("title") || undefined;
   const initialDurationParam = searchParams.get("duration")
@@ -40,20 +41,39 @@ export default function FocusPage() {
 
   useEffect(() => {
     let isMounted = true;
-    async function load() {
-      const [tasksRes, focusRes] = await Promise.all([
-        getTasksAction(),
-        getFocusSessionsAction(),
-      ]);
 
-      if (tasksRes.tasks && isMounted) {
-        setTasks(tasksRes.tasks);
-      }
-      if (focusRes.sessions && isMounted) {
-        setSessions(focusRes.sessions);
-        setTotalMinutes(focusRes.totalMinutesToday);
-        setTotalSessions(focusRes.totalSessionsToday);
-        setTotalXp(focusRes.totalXpToday);
+    // 1. Instant local persistence hydration
+    const localSessions = getLocalFocusSessions();
+    const localTasks = getLocalTasks();
+    if (localTasks.length > 0) setTasks(localTasks);
+    if (localSessions.length > 0) {
+      setSessions(localSessions);
+      const mins = Math.round(localSessions.reduce((acc, s) => acc + s.duration_seconds, 0) / 60);
+      const xp = localSessions.reduce((acc, s) => acc + s.xp_earned, 0);
+      setTotalMinutes(mins);
+      setTotalSessions(localSessions.length);
+      setTotalXp(xp);
+    }
+
+    // 2. Cloud sync
+    async function load() {
+      try {
+        const [tasksRes, focusRes] = await Promise.all([
+          getTasksAction(),
+          getFocusSessionsAction(),
+        ]);
+
+        if (tasksRes.tasks && isMounted && tasksRes.tasks.length > 0) {
+          setTasks(tasksRes.tasks);
+        }
+        if (focusRes.sessions && isMounted && focusRes.sessions.length > 0) {
+          setSessions(focusRes.sessions);
+          setTotalMinutes(focusRes.totalMinutesToday);
+          setTotalSessions(focusRes.totalSessionsToday);
+          setTotalXp(focusRes.totalXpToday);
+        }
+      } catch (err) {
+        console.warn("Focus cloud sync fallback to local storage:", err);
       }
     }
     load();
@@ -73,9 +93,12 @@ export default function FocusPage() {
     setTotalSessions((prev) => prev + 1);
     setTotalXp((prev) => prev + earnedXp);
 
-    // Refresh history
+    // Refresh history from local store & server
+    const local = getLocalFocusSessions();
+    if (local.length > 0) setSessions(local);
+
     getFocusSessionsAction().then((res) => {
-      if (res.sessions) setSessions(res.sessions);
+      if (res.sessions && res.sessions.length > 0) setSessions(res.sessions);
     });
   };
 
@@ -109,14 +132,14 @@ export default function FocusPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-zinc-900">
-            Time Tracker & Focus
+            Time Tracker
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Distraction-free environment with drift-proof Pomodoro timers and ambient audio.
+            Immersive Pomodoro timer designed for distraction-free deep work.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
             Daily Goal: {formattedHours} / 3h 00m ({targetPct}%)
           </span>
@@ -159,5 +182,13 @@ export default function FocusPage() {
       {/* Completed Sessions Log */}
       <FocusHistoryList sessions={sessions} />
     </div>
+  );
+}
+
+export default function FocusPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-zinc-500">Loading focus tracker...</div>}>
+      <FocusContent />
+    </Suspense>
   );
 }

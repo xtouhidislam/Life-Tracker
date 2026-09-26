@@ -74,20 +74,24 @@ export function Topbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const isGuest = !user;
+
   const displayName =
     profile?.display_name ||
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
-    "Touhid";
+    "Guest Commander";
 
-  const userEmail = user?.email || "touhid@lifequest.os";
+  const userEmail = user?.email || "Local Storage Mode";
 
-  const initials = displayName
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase() || "TQ";
+  const initials = isGuest
+    ? "GC"
+    : displayName
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "TQ";
 
   const streak = stats?.current_streak ?? 0;
 
@@ -297,8 +301,13 @@ export function Topbar() {
           {dropdownOpen && (
             <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-zinc-200 p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="px-3 py-2 border-b border-zinc-100">
-                <p className="text-xs font-bold text-zinc-900">{displayName}</p>
-                <p className="text-[11px] text-zinc-400 truncate">{userEmail}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-zinc-900">{displayName}</p>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${isGuest ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                    {isGuest ? "Guest Mode" : "Cloud Sync"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 truncate mt-0.5">{userEmail}</p>
               </div>
 
               <div className="py-1 space-y-0.5">
@@ -321,16 +330,27 @@ export function Topbar() {
               </div>
 
               <div className="pt-1 border-t border-zinc-100">
-                <button
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    signOut();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors text-left"
-                >
-                  <LogOut className="h-4 w-4 text-rose-500" />
-                  <span>Sign Out</span>
-                </button>
+                {isGuest ? (
+                  <Link
+                    href="/login"
+                    onClick={() => setDropdownOpen(false)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#154D38] hover:bg-emerald-50 transition-colors text-left"
+                  >
+                    <UserIcon className="h-4 w-4 text-[#154D38]" />
+                    <span>Connect Account / Sign In</span>
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      signOut();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors text-left"
+                  >
+                    <LogOut className="h-4 w-4 text-rose-500" />
+                    <span>Sign Out</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

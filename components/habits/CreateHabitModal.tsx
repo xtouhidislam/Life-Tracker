@@ -83,6 +83,29 @@ export function CreateHabitModal({
       setTitle("");
       setDescription("");
       onClose();
+    } else {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const fallbackHabit: HabitItem = {
+        id: "habit-" + Date.now(),
+        title: input.title,
+        description: input.description,
+        category_name: input.category_name || "Health",
+        category_color: selectedCategoryObj.color,
+        frequency: input.frequency,
+        target_days_per_week: input.target_days_per_week,
+        time_of_day: input.time_of_day,
+        current_streak: 0,
+        longest_streak: 0,
+        xp_per_completion: 15,
+        is_completed_today: false,
+        history_7_days: [],
+        history_30_days: [],
+        consistency_pct: 0,
+      };
+      onHabitCreated(fallbackHabit);
+      setTitle("");
+      setDescription("");
+      onClose();
     }
   };
 

@@ -29,6 +29,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { soundEffects } from "@/lib/audio/sound-effects";
 import { triggerHaptic } from "@/lib/ui/haptics";
 import { triggerCelebration } from "@/lib/ui/celebration";
+import {
+  getLocalHabits,
+  saveLocalHabits,
+  addLocalHabit,
+  toggleLocalHabit,
+} from "@/lib/storage/local-store";
 
 const FILTER_TABS = [
   { id: "all", label: "All Habits" },
@@ -48,12 +54,27 @@ export default function HabitsPage() {
   const [lastEarnedXp, setLastEarnedXp] = useState(15);
   const [isPending, startTransition] = useTransition();
 
-  // Load habits on mount
+  // Load habits on mount with local storage hydration
   useEffect(() => {
+    const stored = getLocalHabits();
+    if (stored && stored.length > 0) {
+      setHabits(stored);
+    }
+
     async function load() {
-      const res = await getHabitsAction();
-      if (res.habits) {
-        setHabits(res.habits);
+      try {
+        const res = await getHabitsAction();
+        if (res.habits && !res.error) {
+          if (res.habits.length > 0 || stored.length === 0) {
+            setHabits(res.habits);
+            saveLocalHabits(res.habits);
+          }
+        } else if (stored.length === 0 && res.habits) {
+          setHabits(res.habits);
+          saveLocalHabits(res.habits);
+        }
+      } catch (err) {
+        console.warn("Habits cloud sync fallback to local storage:", err);
       }
     }
     load();
@@ -67,28 +88,15 @@ export default function HabitsPage() {
     title: string
   ) => {
     const nextStatus = !currentStatus;
+    const todayStr = new Date().toISOString().split("T")[0];
 
-    // Optimistic UI update
-    setHabits((prev) =>
-      prev.map((h) => {
-        if (h.id === habitId) {
-          const newStreak = nextStatus
-            ? h.current_streak + 1
-            : Math.max(0, h.current_streak - 1);
-          return {
-            ...h,
-            is_completed_today: nextStatus,
-            current_streak: newStreak,
-            longest_streak: Math.max(h.longest_streak, newStreak),
-          };
-        }
-        return h;
-      })
-    );
+    // Immediately persist in local storage
+    const updated = toggleLocalHabit(habitId, todayStr);
+    setHabits(updated);
 
     if (nextStatus) {
-      const updatedHabit = habits.find((h) => h.id === habitId);
-      const nextStreak = (updatedHabit?.current_streak ?? 0) + 1;
+      const updatedHabit = updated.find((h) => h.id === habitId);
+      const nextStreak = updatedHabit?.current_streak ?? 1;
 
       if (nextStreak > 0 && nextStreak % 7 === 0) {
         soundEffects.playLevelUp();
@@ -115,7 +123,8 @@ export default function HabitsPage() {
   };
 
   const handleHabitCreated = (newHabit: HabitItem) => {
-    setHabits((prev) => [newHabit, ...prev]);
+    const updated = addLocalHabit(newHabit);
+    setHabits(updated);
   };
 
   // Filtered habits

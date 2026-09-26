@@ -38,6 +38,19 @@ import {
 import { CreateTaskModal } from "@/components/tasks/CreateTaskModal";
 import { XPToast } from "@/components/tasks/XPToast";
 import Link from "next/link";
+import {
+  getLocalTasks,
+  saveLocalTasks,
+  addLocalTask,
+  toggleLocalTask,
+  getLocalHabits,
+  saveLocalHabits,
+  toggleLocalHabit,
+  getLocalRoutines,
+  saveLocalRoutines,
+  getLocalExpenses,
+  getLocalUserStats,
+} from "@/lib/storage/local-store";
 
 export default function TodayPage() {
   const { user, profile, stats, refreshProfile } = useAuth();
@@ -55,26 +68,61 @@ export default function TodayPage() {
     return d === 0 || d === 6;
   }, []);
 
+  const [localStats, setLocalStats] = useState(() => getLocalUserStats());
+
   useEffect(() => {
+    // 1. Initial hydration from fast local persistence
+    const routineType = (new Date().getDay() === 0 || new Date().getDay() === 6) ? "weekend" : "weekday";
+    const storedTasks = getLocalTasks();
+    const storedHabits = getLocalHabits();
+    const storedRoutines = getLocalRoutines(routineType);
+    const storedExpenses = getLocalExpenses();
+    const storedStats = getLocalUserStats();
+
+    if (storedTasks && storedTasks.length > 0) setTasks(storedTasks);
+    if (storedHabits && storedHabits.length > 0) setHabits(storedHabits);
+    if (storedRoutines && storedRoutines.length > 0) setRoutineBlocks(storedRoutines);
+    setLocalStats(storedStats);
+
+    // 2. Query cloud server actions in background
     async function load() {
-      const routineType = (new Date().getDay() === 0 || new Date().getDay() === 6) ? "weekend" : "weekday";
-      const [tasksRes, habitsRes, routinesRes, expensesRes] = await Promise.all([
-        getTasksAction(),
-        getHabitsAction(),
-        getRoutinesAction(routineType),
-        getExpensesAction("this_month"),
-      ]);
-      if (tasksRes.tasks) {
-        setTasks(tasksRes.tasks);
-      }
-      if (habitsRes.habits) {
-        setHabits(habitsRes.habits);
-      }
-      if (routinesRes.blocks) {
-        setRoutineBlocks(routinesRes.blocks);
-      }
-      if (expensesRes.summary) {
-        setExpenseSummary(expensesRes.summary);
+      try {
+        const [tasksRes, habitsRes, routinesRes, expensesRes] = await Promise.all([
+          getTasksAction(),
+          getHabitsAction(),
+          getRoutinesAction(routineType),
+          getExpensesAction("this_month"),
+        ]);
+
+        if (tasksRes.tasks && !tasksRes.error) {
+          // If remote DB has records or local is empty, update and cache
+          if (tasksRes.tasks.length > 0 || storedTasks.length === 0) {
+            setTasks(tasksRes.tasks);
+            saveLocalTasks(tasksRes.tasks);
+          }
+        } else if (storedTasks.length === 0 && tasksRes.tasks) {
+          setTasks(tasksRes.tasks);
+          saveLocalTasks(tasksRes.tasks);
+        }
+
+        if (habitsRes.habits && !habitsRes.error) {
+          if (habitsRes.habits.length > 0 || storedHabits.length === 0) {
+            setHabits(habitsRes.habits);
+            saveLocalHabits(habitsRes.habits);
+          }
+        } else if (storedHabits.length === 0 && habitsRes.habits) {
+          setHabits(habitsRes.habits);
+          saveLocalHabits(habitsRes.habits);
+        }
+
+        if (routinesRes.blocks) {
+          setRoutineBlocks(routinesRes.blocks);
+        }
+        if (expensesRes.summary) {
+          setExpenseSummary(expensesRes.summary);
+        }
+      } catch (err) {
+        console.warn("Background cloud sync fallback to local storage:", err);
       }
     }
     load();
@@ -116,17 +164,10 @@ export default function TodayPage() {
   const handleToggle = async (task: TaskItem) => {
     const nextStatus = !task.is_completed;
 
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === task.id
-          ? {
-              ...t,
-              is_completed: nextStatus,
-              completed_at: nextStatus ? new Date().toISOString() : null,
-            }
-          : t
-      )
-    );
+    // Immediately update local store & React state
+    const updated = toggleLocalTask(task.id, nextStatus, task.xp_value);
+    setTasks(updated);
+    setLocalStats(getLocalUserStats());
 
     if (nextStatus) {
       setLastEarnedXp(task.xp_value);
@@ -141,10 +182,11 @@ export default function TodayPage() {
   };
 
   const handleTaskCreated = (newTask: TaskItem) => {
-    setTasks((prev) => [newTask, ...prev]);
+    const updated = addLocalTask(newTask);
+    setTasks(updated);
   };
 
-  const streak = stats?.current_streak ?? 0;
+  const streak = stats?.current_streak ?? localStats.current_streak ?? 0;
 
   return (
     <div className="space-y-6 max-w-7xl pb-12 font-sans select-none">

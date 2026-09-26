@@ -20,6 +20,60 @@ import { TransactionTable } from "@/components/expenses/TransactionTable";
 import { CreateExpenseModal } from "@/components/expenses/CreateExpenseModal";
 import { soundEffects } from "@/lib/audio/sound-effects";
 import { triggerHaptic } from "@/lib/ui/haptics";
+import {
+  getLocalExpenses,
+  saveLocalExpenses,
+  addLocalExpense,
+  deleteLocalExpense,
+} from "@/lib/storage/local-store";
+
+function computeLocalSummaries(items: ExpenseItem[]): { categories: CategoryBudget[]; summary: ExpenseSummary } {
+  const total_spent = items.reduce((acc, curr) => acc + curr.amount, 0);
+  const total_budget = 50000;
+  const currentDay = Math.max(1, new Date().getDate());
+
+  const categoryMap = new Map<string, { budget: number; spent: number; color: string }>();
+  DEFAULT_EXPENSE_CATEGORIES.forEach((c) => {
+    categoryMap.set(c.name, {
+      budget: c.default_budget,
+      spent: 0,
+      color: c.color,
+    });
+  });
+
+  items.forEach((e) => {
+    const existing = categoryMap.get(e.category_name);
+    if (existing) {
+      existing.spent += e.amount;
+    } else {
+      categoryMap.set(e.category_name, {
+        budget: 5000,
+        spent: e.amount,
+        color: e.category_color,
+      });
+    }
+  });
+
+  const categories: CategoryBudget[] = Array.from(categoryMap.entries()).map(([name, val], idx) => ({
+    category_id: `cat-${idx}`,
+    category_name: name,
+    category_color: val.color,
+    budget_amount: val.budget,
+    spent_amount: val.spent,
+    percentage: Math.min(100, Math.round((val.spent / (val.budget || 1)) * 100)),
+  }));
+
+  const summary: ExpenseSummary = {
+    total_spent,
+    total_budget,
+    remaining_allowance: Math.max(0, total_budget - total_spent),
+    daily_average: Math.round(total_spent / currentDay),
+    currency: "BDT",
+    expenses_count: items.length,
+  };
+
+  return { categories, summary };
+}
 
 export default function ExpensesPage() {
   const [filterPeriod, setFilterPeriod] = useState<"this_month" | "last_30_days" | "all">("this_month");
@@ -38,13 +92,28 @@ export default function ExpensesPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  // Load initial data
+  // Load initial data with local persistence fallback
   const loadData = async (period = filterPeriod) => {
-    const res = await getExpensesAction(period);
-    if (res.success) {
-      setExpenses(res.expenses);
-      setCategories(res.categories);
-      setSummary(res.summary);
+    const localItems = getLocalExpenses();
+    if (localItems.length > 0) {
+      const { categories: localCats, summary: localSum } = computeLocalSummaries(localItems);
+      setExpenses(localItems);
+      setCategories(localCats);
+      setSummary(localSum);
+    }
+
+    try {
+      const res = await getExpensesAction(period);
+      if (res.success && res.expenses) {
+        if (res.expenses.length > 0 || localItems.length === 0) {
+          setExpenses(res.expenses);
+          setCategories(res.categories);
+          setSummary(res.summary);
+          saveLocalExpenses(res.expenses);
+        }
+      }
+    } catch (err) {
+      console.warn("Expenses cloud sync fallback to local store:", err);
     }
   };
 
@@ -54,9 +123,8 @@ export default function ExpensesPage() {
 
   // Handle new expense creation
   const handleCreateExpense = async (input: CreateExpenseInput) => {
-    // Optimistic UI calculation
     const tempExpense: ExpenseItem = {
-      id: `temp-${Date.now()}`,
+      id: `exp-${Date.now()}`,
       description: input.description,
       category_name: input.category_name,
       category_color: input.category_color || "#154D38",
@@ -66,18 +134,12 @@ export default function ExpensesPage() {
       created_at: new Date().toISOString(),
     };
 
-    setExpenses((prev) => [tempExpense, ...prev]);
-
-    setSummary((prev) => {
-      const newTotal = prev.total_spent + input.amount;
-      return {
-        ...prev,
-        total_spent: newTotal,
-        remaining_allowance: Math.max(0, prev.total_budget - newTotal),
-        daily_average: Math.round(newTotal / Math.max(1, new Date().getDate())),
-        expenses_count: prev.expenses_count + 1,
-      };
-    });
+    // Immediately persist in local storage
+    const updated = addLocalExpense(tempExpense);
+    const { categories: nextCats, summary: nextSum } = computeLocalSummaries(updated);
+    setExpenses(updated);
+    setCategories(nextCats);
+    setSummary(nextSum);
 
     soundEffects.playCheckmark();
     triggerHaptic("success");
@@ -87,7 +149,6 @@ export default function ExpensesPage() {
 
     startTransition(async () => {
       await createExpenseAction(input);
-      await loadData(filterPeriod);
     });
   };
 
@@ -95,23 +156,15 @@ export default function ExpensesPage() {
   const handleDeleteExpense = async (id: string) => {
     soundEffects.playClick();
     triggerHaptic("medium");
-    const target = expenses.find((e) => e.id === id);
-    if (target) {
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
-      setSummary((prev) => {
-        const newTotal = Math.max(0, prev.total_spent - target.amount);
-        return {
-          ...prev,
-          total_spent: newTotal,
-          remaining_allowance: Math.max(0, prev.total_budget - newTotal),
-          expenses_count: Math.max(0, prev.expenses_count - 1),
-        };
-      });
-    }
+
+    const updated = deleteLocalExpense(id);
+    const { categories: nextCats, summary: nextSum } = computeLocalSummaries(updated);
+    setExpenses(updated);
+    setCategories(nextCats);
+    setSummary(nextSum);
 
     startTransition(async () => {
       await deleteExpenseAction(id);
-      await loadData(filterPeriod);
     });
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -19,7 +19,7 @@ import { signupAction } from "@/app/actions/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-export default function SignupPage() {
+function SignupForm() {
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get("redirect") || "/today";
 
@@ -237,5 +237,13 @@ export default function SignupPage() {
         </Link>
       </div>
     </Card>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="text-center p-8 text-sm text-[var(--text-muted)]">Loading registration...</div>}>
+      <SignupForm />
+    </Suspense>
   );
 }

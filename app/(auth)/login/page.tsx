@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, Sparkles, Compass } from "lucide-react";
 import { loginAction } from "@/app/actions/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { setGuestMode } from "@/lib/storage/local-store";
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get("redirect") || "/today";
   const urlError = searchParams.get("error");
@@ -36,6 +38,11 @@ export default function LoginPage() {
     });
   };
 
+  const handleGuestEntry = () => {
+    setGuestMode(true);
+    router.push(redirectTarget);
+  };
+
   const handleDemoFill = () => {
     setEmail("demo@lifequest.app");
     setPassword("LifeQuest2026!");
@@ -52,8 +59,29 @@ export default function LoginPage() {
           Welcome Back, Player
         </h2>
         <p className="text-xs text-[var(--text-secondary)] mt-1.5">
-          Sign in to access your Command Center, streak counters, and daily quests.
+          Sign in for cloud sync, or explore with full local storage persistence.
         </p>
+      </div>
+
+      {/* Guest Mode Direct Access CTA */}
+      <div className="mb-6 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <Compass className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white">Instant Sandbox Mode</div>
+            <div className="text-[11px] text-[var(--text-muted)]">No login needed · Saves to browser</div>
+          </div>
+        </div>
+        <Button
+          type="button"
+          onClick={handleGuestEntry}
+          variant="outline"
+          className="w-full sm:w-auto h-8 px-3 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white border-none shadow-sm shrink-0"
+        >
+          Enter as Guest &rarr;
+        </Button>
       </div>
 
       {/* Error alert */}
@@ -129,7 +157,7 @@ export default function LoginPage() {
             </>
           ) : (
             <>
-              <span>Enter Command Center</span>
+              <span>Sign In with Cloud Sync</span>
               <ArrowRight className="h-4 w-4" />
             </>
           )}
@@ -147,7 +175,7 @@ export default function LoginPage() {
           <span>Fill Demo Credentials</span>
         </button>
         <span className="text-[11px] text-[var(--text-muted)]">
-          Quick test ready
+          Online account
         </span>
       </div>
 
@@ -162,5 +190,13 @@ export default function LoginPage() {
         </Link>
       </div>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="text-center p-8 text-sm text-[var(--text-muted)]">Loading interface...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

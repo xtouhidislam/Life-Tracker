@@ -61,13 +61,15 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/expenses") ||
     pathname.startsWith("/settings");
 
+  const isGuest = request.cookies.get("lifequest_guest")?.value === "true";
+
   // Allow auth callback to complete without interference
   if (isCallbackRoute) {
     return supabaseResponse;
   }
 
-  // Unauthenticated user attempting to access protected route
-  if (!user && isProtectedRoute) {
+  // Unauthenticated user attempting to access protected route (and not in guest mode)
+  if (!user && !isGuest && isProtectedRoute) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     if (pathname !== "/") {

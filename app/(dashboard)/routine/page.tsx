@@ -29,6 +29,11 @@ import { ActiveBlockHero } from "@/components/routines/ActiveBlockHero";
 import { RoutineStatsBar } from "@/components/routines/RoutineStatsBar";
 import { XPToast } from "@/components/tasks/XPToast";
 import { Badge } from "@/components/ui/badge";
+import {
+  getLocalRoutines,
+  saveLocalRoutines,
+  toggleLocalRoutineBlock,
+} from "@/lib/storage/local-store";
 
 export default function RoutinePage() {
   const { refreshProfile } = useAuth();
@@ -55,14 +60,25 @@ export default function RoutinePage() {
   const [showXpToast, setShowXpToast] = useState(false);
   const [lastEarnedXp, setLastEarnedXp] = useState(5);
 
-  // Fetch routine data
+  // Fetch routine data with local storage hydration
   useEffect(() => {
     let isMounted = true;
+    const stored = getLocalRoutines(activeTab);
+    if (stored && stored.length > 0) {
+      setBlocks(stored);
+    }
 
     async function loadData() {
-      const res = await getRoutinesAction(activeTab);
-      if (res.success && isMounted) {
-        setBlocks(res.blocks);
+      try {
+        const res = await getRoutinesAction(activeTab);
+        if (res.success && isMounted && res.blocks) {
+          if (res.blocks.length > 0 || stored.length === 0) {
+            setBlocks(res.blocks);
+            saveLocalRoutines(activeTab, res.blocks);
+          }
+        }
+      } catch (err) {
+        console.warn("Routines cloud sync fallback to local storage:", err);
       }
     }
 
@@ -89,18 +105,9 @@ export default function RoutinePage() {
   const handleToggle = (block: RoutineBlock) => {
     const nextCompleted = !block.is_completed;
 
-    // Optimistic UI update
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === block.id
-          ? {
-              ...b,
-              is_completed: nextCompleted,
-              completed_at: nextCompleted ? new Date().toISOString() : null,
-            }
-          : b
-      )
-    );
+    // Immediately persist in local storage
+    const updated = toggleLocalRoutineBlock(activeTab, block.id, nextCompleted);
+    setBlocks(updated);
 
     if (nextCompleted) {
       soundEffects.playCheckmark();

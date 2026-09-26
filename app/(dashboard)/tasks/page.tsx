@@ -27,6 +27,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { soundEffects } from "@/lib/audio/sound-effects";
 import { triggerHaptic } from "@/lib/ui/haptics";
 import { triggerCelebration } from "@/lib/ui/celebration";
+import {
+  getLocalTasks,
+  saveLocalTasks,
+  addLocalTask,
+  toggleLocalTask,
+  deleteLocalTask,
+} from "@/lib/storage/local-store";
 
 const FILTER_TABS = [
   { id: "all", label: "All Tasks" },
@@ -47,12 +54,27 @@ export default function TasksPage() {
   const [showXpToast, setShowXpToast] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // Load tasks on mount
+  // Load tasks on mount with local persistence hydration
   useEffect(() => {
+    const stored = getLocalTasks();
+    if (stored && stored.length > 0) {
+      setTasks(stored);
+    }
+
     async function loadTasks() {
-      const res = await getTasksAction();
-      if (res.tasks) {
-        setTasks(res.tasks);
+      try {
+        const res = await getTasksAction();
+        if (res.tasks && !res.error) {
+          if (res.tasks.length > 0 || stored.length === 0) {
+            setTasks(res.tasks);
+            saveLocalTasks(res.tasks);
+          }
+        } else if (stored.length === 0 && res.tasks) {
+          setTasks(res.tasks);
+          saveLocalTasks(res.tasks);
+        }
+      } catch (err) {
+        console.warn("Tasks cloud sync fallback to local storage:", err);
       }
     }
     loadTasks();
@@ -70,18 +92,9 @@ export default function TasksPage() {
   ) => {
     const nextStatus = !currentStatus;
 
-    // Optimistic UI update
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              is_completed: nextStatus,
-              completed_at: nextStatus ? new Date().toISOString() : null,
-            }
-          : t
-      )
-    );
+    // Immediately persist and update UI
+    const updated = toggleLocalTask(taskId, nextStatus, xpValue);
+    setTasks(updated);
 
     if (nextStatus) {
       soundEffects.playCheckmark();
@@ -105,7 +118,8 @@ export default function TasksPage() {
 
   // Delete task
   const handleDelete = async (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    const updated = deleteLocalTask(taskId);
+    setTasks(updated);
     startTransition(async () => {
       await deleteTaskAction(taskId);
     });
@@ -113,7 +127,8 @@ export default function TasksPage() {
 
   // On Task Created
   const handleTaskCreated = (newTask: TaskItem) => {
-    setTasks((prev) => [newTask, ...prev]);
+    const updated = addLocalTask(newTask);
+    setTasks(updated);
   };
 
   // Category list derived from tasks

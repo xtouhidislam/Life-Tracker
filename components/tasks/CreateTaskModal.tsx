@@ -103,6 +103,29 @@ export function CreateTaskModal({
       setTitle("");
       setDescription("");
       onClose();
+    } else {
+      // Local persistence fallback
+      const fallbackTask: TaskItem = {
+        id: "task-" + Date.now(),
+        title: input.title,
+        description: input.description,
+        category_name: input.category_name || "Zenin AI",
+        category_color: selectedCategoryObj.color,
+        priority: input.priority,
+        difficulty: input.difficulty,
+        xp_value: selectedDifficultyObj.xp,
+        due_date: input.due_date,
+        due_time: input.due_time,
+        estimated_duration_minutes: input.estimated_duration_minutes,
+        is_recurring: input.is_recurring,
+        recurrence_rule: input.recurrence_rule,
+        is_completed: false,
+        created_at: new Date().toISOString(),
+      };
+      onTaskCreated(fallbackTask);
+      setTitle("");
+      setDescription("");
+      onClose();
     }
   };
 
