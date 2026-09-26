@@ -33,6 +33,8 @@ export interface LocalUserStats {
   total_tasks_completed: number;
   total_habits_completed: number;
   total_focus_minutes: number;
+  total_workout_sessions: number;
+  total_completed_projects: number;
   last_active_date?: string;
 }
 
@@ -52,6 +54,8 @@ const DEFAULT_STATS: LocalUserStats = {
   total_tasks_completed: 0,
   total_habits_completed: 0,
   total_focus_minutes: 0,
+  total_workout_sessions: 0,
+  total_completed_projects: 0,
 };
 
 const DEFAULT_PROFILE: LocalUserProfile = {
@@ -566,6 +570,30 @@ export function recordLocalFocusTime(minutes: number, xp: number): LocalUserStat
     last_active_date: new Date().toISOString().split("T")[0],
   };
 
+  saveLocalUserStats(updated);
+  return updated;
+}
+
+export function recordLocalWorkoutSession(count: number = 1): LocalUserStats {
+  const stats = getLocalUserStats();
+  const current = stats.total_workout_sessions || 0;
+  const updated: LocalUserStats = {
+    ...stats,
+    total_workout_sessions: Math.max(0, current + count),
+    last_active_date: new Date().toISOString().split("T")[0],
+  };
+  saveLocalUserStats(updated);
+  return updated;
+}
+
+export function recordLocalCompletedProject(count: number = 1): LocalUserStats {
+  const stats = getLocalUserStats();
+  const current = stats.total_completed_projects || 0;
+  const updated: LocalUserStats = {
+    ...stats,
+    total_completed_projects: Math.max(0, current + count),
+    last_active_date: new Date().toISOString().split("T")[0],
+  };
   saveLocalUserStats(updated);
   return updated;
 }

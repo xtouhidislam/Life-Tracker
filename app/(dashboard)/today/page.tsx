@@ -1,27 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useTransition } from "react";
-import { CircularProgress } from "@/components/dashboard/CircularProgress";
-import { StatCard } from "@/components/dashboard/StatCard";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   CheckSquare,
-  Flame,
-  Target,
-  Zap,
   Clock,
   Sparkles,
-  Compass,
   Wallet,
   CheckCircle2,
   Plus,
   Play,
   ArrowRight,
   TrendingUp,
-  Calendar,
-  Layers,
+  Target,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getTasksAction, toggleTaskCompletionAction, type TaskItem } from "@/app/actions/tasks";
@@ -45,19 +38,26 @@ import {
   toggleLocalTask,
   getLocalHabits,
   saveLocalHabits,
-  toggleLocalHabit,
   getLocalRoutines,
   saveLocalRoutines,
   getLocalExpenses,
   getLocalUserStats,
+  recordLocalWorkoutSession,
 } from "@/lib/storage/local-store";
+import { DashboardKPIs } from "@/components/dashboard/DashboardKPIs";
+import { OverallScoreCard } from "@/components/dashboard/OverallScoreCard";
+import { WeeklyAnalyticsCard } from "@/components/dashboard/WeeklyAnalyticsCard";
 
 export default function TodayPage() {
   const { user, profile, stats, refreshProfile } = useAuth();
   const [tasks, setTasks] = useState<TaskItem[]>(() => getLocalTasks());
   const [habits, setHabits] = useState<HabitItem[]>(() => getLocalHabits());
   const [routineBlocks, setRoutineBlocks] = useState<RoutineBlock[]>(() => {
-    const routineType = (typeof window !== "undefined" && (new Date().getDay() === 0 || new Date().getDay() === 6)) ? "weekend" : "weekday";
+    const routineType =
+      typeof window !== "undefined" &&
+      (new Date().getDay() === 0 || new Date().getDay() === 6)
+        ? "weekend"
+        : "weekday";
     return getLocalRoutines(routineType);
   });
   const [expenseSummary, setExpenseSummary] = useState<ExpenseSummary | null>(null);
@@ -74,15 +74,16 @@ export default function TodayPage() {
   const [localStats, setLocalStats] = useState(() => getLocalUserStats());
 
   useEffect(() => {
-    const routineType = (new Date().getDay() === 0 || new Date().getDay() === 6) ? "weekend" : "weekday";
-    
-    // Always refresh state from local store on mount/tab activation
+    const routineType =
+      new Date().getDay() === 0 || new Date().getDay() === 6 ? "weekend" : "weekday";
+
+    // Refresh state from local store on mount / route transition
     setTasks(getLocalTasks());
     setHabits(getLocalHabits());
     setRoutineBlocks(getLocalRoutines(routineType));
     setLocalStats(getLocalUserStats());
 
-    // If user is guest/unauthenticated, do NOT call server actions that could overwrite local progress
+    // If unauthenticated / guest, local storage is authoritative
     if (!user) {
       return;
     }
@@ -122,12 +123,6 @@ export default function TodayPage() {
     load();
   }, [user]);
 
-  const displayName =
-    profile?.display_name ||
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "Touhid";
-
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   // Filter tasks due today or pending
@@ -136,22 +131,82 @@ export default function TodayPage() {
     return list.slice(0, 6);
   }, [tasks, todayStr]);
 
-  const completedTasksCount = tasks.filter((t) => t.is_completed).length;
-  const totalTasksCount = tasks.length;
+  // Metric 1: Total Completed Tasks
+  const completedTasksCount = useMemo(() => {
+    return tasks.filter((t) => t.is_completed).length;
+  }, [tasks]);
 
+  // Metric 2: Remaining Daily Task
+  const remainingDailyTasksCount = useMemo(() => {
+    return todayTasks.filter((t) => !t.is_completed).length;
+  }, [todayTasks]);
+
+  // Metric 3: Total Completed Projects
+  const totalCompletedProjects = useMemo(() => {
+    return (
+      localStats.total_completed_projects ||
+      tasks.filter(
+        (t) =>
+          t.is_completed &&
+          (t.difficulty === "difficult" ||
+            t.category_name?.toLowerCase().includes("zenin") ||
+            t.category_name?.toLowerCase().includes("project"))
+      ).length ||
+      3
+    );
+  }, [localStats.total_completed_projects, tasks]);
+
+  // Metric 4: Total Focused Hours
+  const totalFocusedHours = useMemo(() => {
+    const mins = localStats.total_focus_minutes || 0;
+    return (mins / 60).toFixed(1);
+  }, [localStats.total_focus_minutes]);
+
+  // Metric 5: Total Workout Sessions
+  const totalWorkoutSessions = useMemo(() => {
+    return (
+      localStats.total_workout_sessions ||
+      habits.find((h) => h.category_name === "Health")?.history_30_days?.length ||
+      6
+    );
+  }, [localStats.total_workout_sessions, habits]);
+
+  // Metric 6: Total Money Spent This Month
+  const totalSpent = useMemo(() => {
+    if (expenseSummary?.total_spent != null) return expenseSummary.total_spent;
+    const local = getLocalExpenses();
+    return local.reduce((acc, curr) => acc + curr.amount, 0);
+  }, [expenseSummary]);
+
+  // Metric 7: Remaining Balance This Month
+  const remainingBalance = useMemo(() => {
+    if (expenseSummary?.remaining_allowance != null) return expenseSummary.remaining_allowance;
+    return Math.max(0, 50000 - totalSpent);
+  }, [expenseSummary, totalSpent]);
+
+  // Metric 8 & 9: Overall Score (Monthly + Daily)
+  const totalActions = tasks.length + habits.length;
   const completedHabitsCount = habits.filter((h) => h.is_completed_today).length;
-  const totalHabitsCount = habits.length;
-
-  const totalActions = totalTasksCount + totalHabitsCount;
   const completedActions = completedTasksCount + completedHabitsCount;
-  const dailyLifeScore = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0;
+  const dailyScore = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0;
 
+  const habitConsistencyPct = useMemo(() => {
+    return habits.length > 0 ? Math.round((completedHabitsCount / habits.length) * 100) : 0;
+  }, [habits, completedHabitsCount]);
+
+  const monthlyScore = useMemo(() => {
+    const base = dailyScore * 0.45 + habitConsistencyPct * 0.55;
+    return Math.min(100, Math.max(45, Math.round(base || 82)));
+  }, [dailyScore, habitConsistencyPct]);
+
+  // Routine block state
   const routineState = useMemo(() => {
-    const blocks = routineBlocks.length > 0
-      ? routineBlocks
-      : isWeekend
-      ? DEFAULT_WEEKEND_BLOCKS
-      : DEFAULT_WEEKDAY_BLOCKS;
+    const blocks =
+      routineBlocks.length > 0
+        ? routineBlocks
+        : isWeekend
+        ? DEFAULT_WEEKEND_BLOCKS
+        : DEFAULT_WEEKDAY_BLOCKS;
     return getActiveBlockState(blocks, new Date());
   }, [routineBlocks, isWeekend]);
 
@@ -180,10 +235,18 @@ export default function TodayPage() {
     setTasks(updated);
   };
 
+  const handleLogWorkout = () => {
+    const updated = recordLocalWorkoutSession(1);
+    setLocalStats(updated);
+    setLastEarnedXp(15);
+    setShowXpToast(true);
+    setTimeout(() => setShowXpToast(false), 3200);
+  };
+
   const streak = stats?.current_streak ?? localStats.current_streak ?? 0;
 
   return (
-    <div className="space-y-6 max-w-7xl pb-12 font-sans select-none">
+    <div className="space-y-6 max-w-7xl pb-16 font-sans select-none">
       {/* Toast Notification */}
       <XPToast
         visible={showXpToast}
@@ -191,14 +254,14 @@ export default function TodayPage() {
         message="Quest Objective Completed!"
       />
 
-      {/* Top Header matching Donezo Reference */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-zinc-900">
             Dashboard
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Plan, prioritize, and accomplish your tasks with ease.
+            Plan, prioritize, and accomplish your life missions with precision.
           </p>
         </div>
 
@@ -222,170 +285,66 @@ export default function TodayPage() {
           <Link href="/expenses">
             <Button variant="outline" className="gap-2 text-xs font-semibold">
               <Wallet className="h-4 w-4 text-emerald-600" />
-              <span>৳ {expenseSummary?.remaining_allowance.toLocaleString() ?? "17,550"} Buffer</span>
+              <span>৳ {remainingBalance.toLocaleString()} Buffer</span>
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* 4 KPI Metric Cards (With signature Forest Green Hero card) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Tasks"
-          value={tasks.length || 24}
-          isHero={true}
-          trend={{ value: `${completedTasksCount} Completed today`, positive: true }}
-        />
-        <StatCard
-          title="Ended Projects"
-          value={completedTasksCount || 10}
-          trend={{ value: `${dailyLifeScore}% completion rate`, positive: true }}
-        />
-        <StatCard
-          title="Running Habits"
-          value={`${completedHabitsCount} / ${habits.length || 6}`}
-          trend={{ value: "91% consistency", positive: true }}
-        />
-        <StatCard
-          title="Pending Objectives"
-          value={tasks.length - completedTasksCount || 2}
-          subtext="On schedule for today"
-        />
-      </div>
+      {/* =========================================================================
+          SECTION 1: Aligned KPI Command Cards
+          - Total Completed Tasks
+          - Remaining Daily Tasks
+          - Total Completed Projects
+          - Total Focused Hours
+          - Total Workout Sessions
+          - Total Money Spent This Month
+          - Remaining Balance This Month
+          ========================================================================= */}
+      <DashboardKPIs
+        completedTasksCount={completedTasksCount}
+        remainingDailyTasksCount={remainingDailyTasksCount}
+        totalCompletedProjects={totalCompletedProjects}
+        totalFocusedHours={totalFocusedHours}
+        totalWorkoutSessions={totalWorkoutSessions}
+        totalSpent={totalSpent}
+        remainingBalance={remainingBalance}
+        onLogWorkout={handleLogWorkout}
+        onOpenTaskModal={() => setIsModalOpen(true)}
+      />
 
-      {/* Middle Analytical Row (Project Analytics, Reminders & Circular Progress) */}
+      {/* =========================================================================
+          SECTION 2: Overall Score (Monthly + Daily) & Weekly Analytics
+          - Overall Score (Monthly + Daily) Card
+          - Weekly Analytics (7-Day Velocity & Deep Work Cadence)
+          ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* 1. Project / Focus Analytics (Weekly Capsule Bars) */}
-        <Card className="lg:col-span-5 bg-white border border-zinc-200/90 shadow-2xs">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-base font-bold text-zinc-900">
-                Weekly Focus Analytics
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Deep work intensity across the current cycle
-              </CardDescription>
-            </div>
-            <Badge variant="outline" className="text-[10px]">
-              This Week
-            </Badge>
-          </CardHeader>
-          <CardContent className="pt-2">
-            <div className="flex items-end justify-between gap-2.5 h-36 px-2">
-              {[
-                { day: "S", height: "45%", type: "hatched" },
-                { day: "M", height: "80%", type: "mint" },
-                { day: "T", height: "65%", type: "mint", badge: "76%" },
-                { day: "W", height: "95%", type: "forest" },
-                { day: "T", height: "55%", type: "hatched" },
-                { day: "F", height: "60%", type: "hatched" },
-                { day: "S", height: "50%", type: "hatched" },
-              ].map((bar, idx) => (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                  {bar.badge && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white border border-zinc-200 text-zinc-800 shadow-2xs">
-                      {bar.badge}
-                    </span>
-                  )}
-                  <div
-                    className={`w-full max-w-[28px] rounded-full transition-all duration-500 ${
-                      bar.type === "forest"
-                        ? "bg-[#154D38]"
-                        : bar.type === "mint"
-                        ? "bg-emerald-400"
-                        : "hatched-pattern border border-zinc-200"
-                    }`}
-                    style={{ height: bar.height }}
-                  />
-                  <span className="text-xs font-semibold text-zinc-500 font-mono">
-                    {bar.day}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Overall Score: Monthly + Daily Aligned (5 Cols) */}
+        <div className="lg:col-span-6">
+          <OverallScoreCard
+            dailyScore={dailyScore}
+            monthlyScore={monthlyScore}
+            completedActions={completedActions}
+            totalActions={totalActions}
+            habitConsistencyPct={habitConsistencyPct}
+            streak={streak}
+          />
+        </div>
 
-        {/* 2. Reminders & Current Daily Rhythm (Center) */}
-        <Card className="lg:col-span-4 bg-white border border-zinc-200/90 shadow-2xs flex flex-col justify-between">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs uppercase font-bold tracking-wider text-zinc-400">
-                Reminders & Rhythms
-              </span>
-              <Badge variant="mint" className="text-[10px]">
-                {routineState.activeBlock ? "Active Now" : "Scheduled"}
-              </Badge>
-            </div>
-
-            <CardTitle className="text-lg font-bold text-zinc-900 mt-2">
-              {routineState.activeBlock
-                ? routineState.activeBlock.title
-                : routineState.nextBlock
-                ? routineState.nextBlock.title
-                : "Deep Work Focus Block"}
-            </CardTitle>
-
-            <div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
-              <Clock className="h-3.5 w-3.5 text-[#154D38]" />
-              <span>
-                {routineState.activeBlock
-                  ? `${formatTo12Hour(routineState.activeBlock.start_time)} – ${formatTo12Hour(routineState.activeBlock.end_time)}`
-                  : "02:00 PM – 04:00 PM"}
-              </span>
-            </div>
-          </CardHeader>
-
-          <CardContent className="pt-2">
-            <p className="text-xs text-zinc-500 line-clamp-2 mb-4 leading-relaxed">
-              {routineState.activeBlock
-                ? routineState.activeBlock.description
-                : "High-leverage engineering sprint: core project architectures and AI code."}
-            </p>
-
-            <Link href="/routine" className="block w-full">
-              <Button variant="primary" className="w-full text-xs font-bold gap-2">
-                <Play className="h-3.5 w-3.5 fill-white" />
-                <span>Start Routine Sprint</span>
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* 3. Time Tracker Card (Inspired by Bottom-Right widget in screenshot) */}
-        <div className="lg:col-span-3 rounded-2xl bg-gradient-to-br from-[#123E2E] via-[#0D2F22] to-[#071A13] text-white p-5 flex flex-col justify-between shadow-md relative overflow-hidden">
-          {/* Subtle silk wave ambient effect */}
-          <div className="absolute top-0 right-0 -mr-12 -mt-12 w-40 h-40 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="flex items-center justify-between text-xs text-emerald-200">
-            <span className="font-semibold flex items-center gap-1.5">
-              <Target className="h-3.5 w-3.5 text-emerald-400" />
-              Time Tracker
-            </span>
-            <Badge variant="forest" className="bg-emerald-800/60 text-[10px]">
-              Pomodoro
-            </Badge>
-          </div>
-
-          <div className="text-center py-4 space-y-1">
-            <div className="text-3xl font-mono font-black tracking-wider text-white">
-              01:24:08
-            </div>
-            <p className="text-[11px] text-emerald-200/80">Deep Work Sprint Active</p>
-          </div>
-
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <Link href="/focus">
-              <button className="h-9 px-4 rounded-full bg-white hover:bg-emerald-50 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs">
-                <Play className="h-3 w-3 fill-slate-950" />
-                <span>Open Timer</span>
-              </button>
-            </Link>
-          </div>
+        {/* Weekly Analytics (7 Cols) */}
+        <div className="lg:col-span-6">
+          <WeeklyAnalyticsCard
+            averageWeeklyScore={Math.round((monthlyScore + dailyScore) / 2)}
+            totalWeeklyHours={Number(totalFocusedHours)}
+          />
         </div>
       </div>
 
-      {/* Main Grid: Execution Queue & Project Progress */}
+      {/* =========================================================================
+          SECTION 3: Execution Queue & Daily Rhythm Engine
+          - Today's Execution Queue (Remaining daily tasks interactive checklist)
+          - Reminders & Scheduled Routine Block
+          ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Today's Execution Queue (8 Columns) */}
         <div className="lg:col-span-8 space-y-4">
@@ -396,13 +355,13 @@ export default function TodayPage() {
                   Today&apos;s Execution Queue
                 </CardTitle>
                 <CardDescription className="text-xs text-zinc-500">
-                  Scheduled deliverables and focus objectives
+                  {remainingDailyTasksCount} remaining daily objectives scheduled
                 </CardDescription>
               </div>
 
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs font-semibold">
-                  {tasks.length - completedTasksCount} Pending
+                  {remainingDailyTasksCount} Due Today
                 </Badge>
                 <Button
                   size="sm"
@@ -475,42 +434,52 @@ export default function TodayPage() {
           </Card>
         </div>
 
-        {/* Project Progress Gauge (4 Columns) */}
+        {/* Reminders & Routine Rhythm (4 Columns) */}
         <div className="lg:col-span-4 space-y-4">
-          <Card className="bg-white border border-zinc-200/90 shadow-2xs">
+          <Card className="bg-white border border-zinc-200/90 shadow-2xs flex flex-col justify-between h-full">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-bold text-zinc-900">
-                Daily Life Score
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase font-bold tracking-wider text-zinc-400">
+                  Reminders & Rhythms
+                </span>
+                <Badge variant="mint" className="text-[10px]">
+                  {routineState.activeBlock ? "Active Now" : "Scheduled"}
+                </Badge>
+              </div>
+
+              <CardTitle className="text-lg font-bold text-zinc-900 mt-2">
+                {routineState.activeBlock
+                  ? routineState.activeBlock.title
+                  : routineState.nextBlock
+                  ? routineState.nextBlock.title
+                  : "Deep Work Focus Block"}
               </CardTitle>
-              <CardDescription className="text-xs text-zinc-500">
-                Holistic score combining tasks and habits
-              </CardDescription>
-            </CardHeader>
 
-            <CardContent className="pt-2 flex flex-col items-center">
-              <CircularProgress
-                value={dailyLifeScore}
-                size={170}
-                strokeWidth={14}
-                completedText={`${completedActions} / ${totalActions} Done`}
-                subText="Daily Life Score"
-              />
-
-              {/* Progress Legend matching Donezo gauge */}
-              <div className="flex items-center justify-center gap-4 text-[11px] text-zinc-600 font-medium pt-4 border-t border-zinc-100 w-full mt-2">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Completed
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-[#154D38]" />
-                  Active
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-zinc-300" />
-                  Pending
+              <div className="flex items-center gap-2 text-xs text-zinc-500 mt-1">
+                <Clock className="h-3.5 w-3.5 text-[#154D38]" />
+                <span>
+                  {routineState.activeBlock
+                    ? `${formatTo12Hour(routineState.activeBlock.start_time)} – ${formatTo12Hour(
+                        routineState.activeBlock.end_time
+                      )}`
+                    : "02:00 PM – 04:00 PM"}
                 </span>
               </div>
+            </CardHeader>
+
+            <CardContent className="pt-2">
+              <p className="text-xs text-zinc-500 line-clamp-2 mb-4 leading-relaxed">
+                {routineState.activeBlock
+                  ? routineState.activeBlock.description
+                  : "High-leverage engineering sprint: core project architectures and AI code."}
+              </p>
+
+              <Link href="/routine" className="block w-full">
+                <Button variant="primary" className="w-full text-xs font-bold gap-2">
+                  <Play className="h-3.5 w-3.5 fill-white" />
+                  <span>Start Routine Sprint</span>
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
