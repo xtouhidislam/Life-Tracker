@@ -84,8 +84,7 @@ export async function getRoutinesAction(type: "weekday" | "weekend" = "weekday")
     };
   } catch (error) {
     console.error("Error in getRoutinesAction:", error);
-    const fallback = type === "weekday" ? DEFAULT_WEEKDAY_BLOCKS : DEFAULT_WEEKEND_BLOCKS;
-    return { success: true, blocks: fallback, isCustom: false };
+    return { success: false, blocks: [], isCustom: false, isGuest: true };
   }
 }
 

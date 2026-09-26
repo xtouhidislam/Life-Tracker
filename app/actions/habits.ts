@@ -339,7 +339,7 @@ export async function getHabitsAction(): Promise<{ habits: HabitItem[]; error?: 
     return { habits };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error fetching habits";
-    return { habits: DEFAULT_HABITS, error: message };
+    return { habits: [], error: message, isGuest: true };
   }
 }
 
