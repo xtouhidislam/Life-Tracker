@@ -21,6 +21,7 @@ import { useNotification } from "@/components/providers/NotificationProvider";
 import { useHotkeys } from "@/components/providers/HotkeyProvider";
 import { soundEffects } from "@/lib/audio/sound-effects";
 import { triggerHaptic } from "@/lib/ui/haptics";
+import { getLocalUserStats } from "@/lib/storage/local-store";
 
 const ROUTE_TITLES: Record<string, string> = {
   "/today": "Dashboard",
@@ -43,6 +44,11 @@ export function Topbar() {
   const { openCommandPalette, openShortcuts } = useHotkeys();
 
   const [soundOn, setSoundOn] = useState(true);
+  const [localStats, setLocalStats] = useState(() => getLocalUserStats());
+
+  useEffect(() => {
+    setLocalStats(getLocalUserStats());
+  }, [pathname]);
 
   useEffect(() => {
     setSoundOn(soundEffects.isEnabled());
@@ -93,7 +99,7 @@ export function Topbar() {
         .slice(0, 2)
         .toUpperCase() || "TQ";
 
-  const streak = stats?.current_streak ?? 0;
+  const streak = stats?.current_streak ?? localStats.current_streak ?? 0;
 
   return (
     <header className="h-16 sticky top-0 z-20 bg-white border-b border-[#EBECEF] px-4 md:px-8 flex items-center justify-between">

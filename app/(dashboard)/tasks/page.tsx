@@ -44,8 +44,8 @@ const FILTER_TABS = [
 ];
 
 export default function TasksPage() {
-  const { refreshProfile } = useAuth();
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const { user, refreshProfile } = useAuth();
+  const [tasks, setTasks] = useState<TaskItem[]>(() => getLocalTasks());
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -56,20 +56,13 @@ export default function TasksPage() {
 
   // Load tasks on mount with local persistence hydration
   useEffect(() => {
-    const stored = getLocalTasks();
-    if (stored && stored.length > 0) {
-      setTasks(stored);
-    }
+    setTasks(getLocalTasks());
+    if (!user) return;
 
     async function loadTasks() {
       try {
         const res = await getTasksAction();
-        if (res.tasks && !res.error) {
-          if (res.tasks.length > 0 || stored.length === 0) {
-            setTasks(res.tasks);
-            saveLocalTasks(res.tasks);
-          }
-        } else if (stored.length === 0 && res.tasks) {
+        if (res.tasks && res.tasks.length > 0) {
           setTasks(res.tasks);
           saveLocalTasks(res.tasks);
         }
@@ -78,7 +71,7 @@ export default function TasksPage() {
       }
     }
     loadTasks();
-  }, []);
+  }, [user]);
 
   // Today's date string YYYY-MM-DD
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);

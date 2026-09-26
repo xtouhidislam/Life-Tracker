@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/database.types";
 import { useRouter } from "next/navigation";
+import { getLocalUserProfile, getLocalUserStats } from "@/lib/storage/local-store";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type UserStats = Database["public"]["Tables"]["user_stats"]["Row"];
@@ -70,11 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await fetchUserData(currentUser.id);
         } else {
           setUser(null);
-          setProfile(null);
-          setStats(null);
+          setProfile(getLocalUserProfile() as any);
+          setStats(getLocalUserStats() as any);
         }
       } catch (err) {
         console.error("Init auth error:", err);
+        setUser(null);
+        setProfile(getLocalUserProfile() as any);
+        setStats(getLocalUserStats() as any);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -90,8 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await fetchUserData(session.user.id);
       } else {
         setUser(null);
-        setProfile(null);
-        setStats(null);
+        setProfile(getLocalUserProfile() as any);
+        setStats(getLocalUserStats() as any);
       }
       setLoading(false);
     });
@@ -105,6 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = async () => {
     if (user) {
       await fetchUserData(user.id);
+    } else {
+      setProfile(getLocalUserProfile() as any);
+      setStats(getLocalUserStats() as any);
     }
   };
 

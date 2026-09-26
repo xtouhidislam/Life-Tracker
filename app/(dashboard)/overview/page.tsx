@@ -13,18 +13,104 @@ import { RhythmVelocityChart } from "@/components/analytics/RhythmVelocityChart"
 import { DomainBalanceCard } from "@/components/analytics/DomainBalanceCard";
 import { CrossSystemSynthesis } from "@/components/analytics/CrossSystemSynthesis";
 import { DataExportModal } from "@/components/analytics/DataExportModal";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  getLocalUserStats,
+  getLocalTasks,
+  getLocalHabits,
+  getLocalExpenses,
+} from "@/lib/storage/local-store";
+
+function computeLocalOverviewData(range: TimeRange): OverviewAnalyticsData {
+  const stats = getLocalUserStats();
+  const tasks = getLocalTasks();
+  const habits = getLocalHabits();
+  const expenses = getLocalExpenses();
+
+  const totalTasksCount = tasks.length;
+  const totalTasksCompleted = tasks.filter((t) => t.is_completed).length;
+  const taskCompletionRate = totalTasksCount > 0 ? Math.round((totalTasksCompleted / totalTasksCount) * 100) : 0;
+
+  const totalHabitsCompleted = habits.filter((h) => h.is_completed_today).length;
+  const habitConsistencyRate = habits.length > 0 ? Math.round((totalHabitsCompleted / habits.length) * 100) : 0;
+
+  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalBudget = 50000;
+  const budgetUtilizationPct = Math.min(100, Math.round((totalExpenses / totalBudget) * 100));
+
+  const totalFocusHours = Math.round((stats.total_focus_minutes / 60) * 10) / 10;
+  const averageFocusMinutes = stats.total_focus_minutes > 0 ? Math.min(60, stats.total_focus_minutes) : 0;
+
+  const domains = [
+    {
+      name: "Zenin AI & Deep Coding",
+      hours: totalFocusHours > 0 ? Math.round(totalFocusHours * 0.44 * 10) / 10 : 0,
+      percentage: totalFocusHours > 0 ? 44 : 0,
+      color: "#154D38",
+    },
+    {
+      name: "Office & Operations",
+      hours: totalFocusHours > 0 ? Math.round(totalFocusHours * 0.28 * 10) / 10 : 0,
+      percentage: totalFocusHours > 0 ? 28 : 0,
+      color: "#0D9488",
+    },
+    {
+      name: "Study & Skill Tree",
+      hours: totalFocusHours > 0 ? Math.round(totalFocusHours * 0.16 * 10) / 10 : 0,
+      percentage: totalFocusHours > 0 ? 16 : 0,
+      color: "#10B981",
+    },
+    {
+      name: "Trading & Finance",
+      hours: totalFocusHours > 0 ? Math.round(totalFocusHours * 0.12 * 10) / 10 : 0,
+      percentage: totalFocusHours > 0 ? 12 : 0,
+      color: "#F59E0B",
+    },
+  ];
+
+  const trendPoints = [
+    { label: "Mon", dateStr: "2026-09-22", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+    { label: "Tue", dateStr: "2026-09-23", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+    { label: "Wed", dateStr: "2026-09-24", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+    { label: "Thu", dateStr: "2026-09-25", completionRate: 0, focusMinutes: 0, xpEarned: 0 },
+    { label: "Fri", dateStr: "2026-09-26", completionRate: taskCompletionRate, focusMinutes: stats.total_focus_minutes, xpEarned: stats.total_xp, isToday: true },
+  ];
+
+  return {
+    timeRange: range,
+    totalXp: stats.total_xp,
+    level: stats.current_level,
+    streak: stats.current_streak,
+    taskCompletionRate,
+    totalTasksCompleted,
+    totalTasksCount,
+    habitConsistencyRate,
+    totalHabitsCompleted,
+    totalFocusHours,
+    totalFocusSessions: stats.total_focus_minutes > 0 ? 1 : 0,
+    averageFocusMinutes,
+    totalExpenses,
+    budgetUtilizationPct,
+    domains,
+    trendPoints,
+  };
+}
 
 export default function OverviewPage() {
+  const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<TimeRange>("month");
-  const [data, setData] = useState<OverviewAnalyticsData | null>(null);
+  const [data, setData] = useState<OverviewAnalyticsData | null>(() => computeLocalOverviewData("month"));
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const loadData = async (range = timeRange) => {
+    setData(computeLocalOverviewData(range));
+    if (!user) return;
+
     setIsLoading(true);
     try {
       const res = await getOverviewAnalyticsAction(range);
-      if (res.success) {
+      if (res.success && res.data) {
         setData(res.data);
       }
     } finally {
@@ -34,7 +120,7 @@ export default function OverviewPage() {
 
   useEffect(() => {
     loadData(timeRange);
-  }, [timeRange]);
+  }, [timeRange, user]);
 
   const rangeLabels: Record<TimeRange, string> = {
     day: "Today (Hourly Velocity)",

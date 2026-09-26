@@ -36,11 +36,12 @@ import {
 } from "@/lib/storage/local-store";
 
 export default function RoutinePage() {
-  const { refreshProfile } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [, startTransition] = useTransition();
 
   // Auto-detect whether today is a weekday or weekend
   const isWeekendToday = useMemo(() => {
+    if (typeof window === "undefined") return false;
     const day = new Date().getDay();
     return day === 0 || day === 6; // Sunday or Saturday
   }, []);
@@ -50,8 +51,8 @@ export default function RoutinePage() {
   );
 
   const [filterType, setFilterType] = useState<string>("all");
-  const [blocks, setBlocks] = useState<RoutineBlock[]>(
-    isWeekendToday ? DEFAULT_WEEKEND_BLOCKS : DEFAULT_WEEKDAY_BLOCKS
+  const [blocks, setBlocks] = useState<RoutineBlock[]>(() =>
+    getLocalRoutines(isWeekendToday ? "weekend" : "weekday")
   );
 
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -63,19 +64,16 @@ export default function RoutinePage() {
   // Fetch routine data with local storage hydration
   useEffect(() => {
     let isMounted = true;
-    const stored = getLocalRoutines(activeTab);
-    if (stored && stored.length > 0) {
-      setBlocks(stored);
-    }
+    setBlocks(getLocalRoutines(activeTab));
+
+    if (!user) return;
 
     async function loadData() {
       try {
         const res = await getRoutinesAction(activeTab);
-        if (res.success && isMounted && res.blocks) {
-          if (res.blocks.length > 0 || stored.length === 0) {
-            setBlocks(res.blocks);
-            saveLocalRoutines(activeTab, res.blocks);
-          }
+        if (res.success && isMounted && res.blocks && res.blocks.length > 0) {
+          setBlocks(res.blocks);
+          saveLocalRoutines(activeTab, res.blocks);
         }
       } catch (err) {
         console.warn("Routines cloud sync fallback to local storage:", err);
@@ -87,7 +85,7 @@ export default function RoutinePage() {
     return () => {
       isMounted = false;
     };
-  }, [activeTab]);
+  }, [activeTab, user]);
 
   // Keep track of active block ID
   useEffect(() => {

@@ -188,7 +188,7 @@ const DEFAULT_HABITS: HabitItem[] = [
   },
 ];
 
-export async function getHabitsAction(): Promise<{ habits: HabitItem[]; error?: string }> {
+export async function getHabitsAction(): Promise<{ habits: HabitItem[]; error?: string; isGuest?: boolean }> {
   try {
     const supabase = await createClient();
     const {
@@ -196,17 +196,75 @@ export async function getHabitsAction(): Promise<{ habits: HabitItem[]; error?: 
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return { habits: DEFAULT_HABITS };
+      return { habits: [], isGuest: true };
     }
 
     const { data: dbHabits, error: habitsError } = await supabase
       .from("habits")
       .select("*")
+      .eq("user_id", user.id)
       .eq("is_archived", false)
       .order("created_at", { ascending: true });
 
-    if (habitsError || !dbHabits || dbHabits.length === 0) {
-      return { habits: DEFAULT_HABITS };
+    if (habitsError) {
+      return { habits: [], error: habitsError.message };
+    }
+
+    if (!dbHabits || dbHabits.length === 0) {
+      // User is authenticated in Supabase but has no habits yet. Seed initial habits into their cloud account.
+      const initialInserts = DEFAULT_HABITS.map((h) => ({
+        user_id: user.id,
+        title: h.title,
+        description: h.description || null,
+        frequency: h.frequency,
+        target_days_per_week: h.target_days_per_week,
+        time_of_day: h.time_of_day,
+        xp_per_completion: h.xp_per_completion,
+        current_streak: 0,
+        longest_streak: 0,
+        is_archived: false,
+      }));
+
+      const { data: seeded, error: seedError } = await supabase
+        .from("habits")
+        .insert(initialInserts)
+        .select();
+
+      if (seedError || !seeded) {
+        return { habits: [] };
+      }
+
+      // Convert seeded rows to HabitItem shape
+      const today = new Date();
+      const last7DaysInterval = eachDayOfInterval({
+        start: subDays(today, 6),
+        end: today,
+      });
+
+      const seededItems: HabitItem[] = seeded.map((h) => ({
+        id: h.id,
+        user_id: h.user_id,
+        title: h.title,
+        description: h.description,
+        category_name: "Personal",
+        category_color: "#10B981",
+        frequency: h.frequency,
+        target_days_per_week: h.target_days_per_week,
+        time_of_day: h.time_of_day,
+        current_streak: 0,
+        longest_streak: 0,
+        xp_per_completion: h.xp_per_completion,
+        is_completed_today: false,
+        history_7_days: last7DaysInterval.map((d) => ({
+          date: format(d, "yyyy-MM-dd"),
+          dayName: format(d, "EEE"),
+          completed: false,
+        })),
+        history_30_days: [],
+        consistency_pct: 0,
+      }));
+
+      return { habits: seededItems };
     }
 
     // Get completions for the last 30 days

@@ -54,9 +54,12 @@ import {
 
 export default function TodayPage() {
   const { user, profile, stats, refreshProfile } = useAuth();
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [habits, setHabits] = useState<HabitItem[]>([]);
-  const [routineBlocks, setRoutineBlocks] = useState<RoutineBlock[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>(() => getLocalTasks());
+  const [habits, setHabits] = useState<HabitItem[]>(() => getLocalHabits());
+  const [routineBlocks, setRoutineBlocks] = useState<RoutineBlock[]>(() => {
+    const routineType = (typeof window !== "undefined" && (new Date().getDay() === 0 || new Date().getDay() === 6)) ? "weekend" : "weekday";
+    return getLocalRoutines(routineType);
+  });
   const [expenseSummary, setExpenseSummary] = useState<ExpenseSummary | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showXpToast, setShowXpToast] = useState(false);
@@ -71,20 +74,20 @@ export default function TodayPage() {
   const [localStats, setLocalStats] = useState(() => getLocalUserStats());
 
   useEffect(() => {
-    // 1. Initial hydration from fast local persistence
     const routineType = (new Date().getDay() === 0 || new Date().getDay() === 6) ? "weekend" : "weekday";
-    const storedTasks = getLocalTasks();
-    const storedHabits = getLocalHabits();
-    const storedRoutines = getLocalRoutines(routineType);
-    const storedExpenses = getLocalExpenses();
-    const storedStats = getLocalUserStats();
+    
+    // Always refresh state from local store on mount/tab activation
+    setTasks(getLocalTasks());
+    setHabits(getLocalHabits());
+    setRoutineBlocks(getLocalRoutines(routineType));
+    setLocalStats(getLocalUserStats());
 
-    if (storedTasks && storedTasks.length > 0) setTasks(storedTasks);
-    if (storedHabits && storedHabits.length > 0) setHabits(storedHabits);
-    if (storedRoutines && storedRoutines.length > 0) setRoutineBlocks(storedRoutines);
-    setLocalStats(storedStats);
+    // If user is guest/unauthenticated, do NOT call server actions that could overwrite local progress
+    if (!user) {
+      return;
+    }
 
-    // 2. Query cloud server actions in background
+    // Authenticated cloud sync
     async function load() {
       try {
         const [tasksRes, habitsRes, routinesRes, expensesRes] = await Promise.all([
@@ -94,30 +97,21 @@ export default function TodayPage() {
           getExpensesAction("this_month"),
         ]);
 
-        if (tasksRes.tasks && !tasksRes.error) {
-          // If remote DB has records or local is empty, update and cache
-          if (tasksRes.tasks.length > 0 || storedTasks.length === 0) {
-            setTasks(tasksRes.tasks);
-            saveLocalTasks(tasksRes.tasks);
-          }
-        } else if (storedTasks.length === 0 && tasksRes.tasks) {
+        if (tasksRes.tasks && tasksRes.tasks.length > 0) {
           setTasks(tasksRes.tasks);
           saveLocalTasks(tasksRes.tasks);
         }
 
-        if (habitsRes.habits && !habitsRes.error) {
-          if (habitsRes.habits.length > 0 || storedHabits.length === 0) {
-            setHabits(habitsRes.habits);
-            saveLocalHabits(habitsRes.habits);
-          }
-        } else if (storedHabits.length === 0 && habitsRes.habits) {
+        if (habitsRes.habits && habitsRes.habits.length > 0) {
           setHabits(habitsRes.habits);
           saveLocalHabits(habitsRes.habits);
         }
 
-        if (routinesRes.blocks) {
+        if (routinesRes.blocks && routinesRes.blocks.length > 0) {
           setRoutineBlocks(routinesRes.blocks);
+          saveLocalRoutines(routineType, routinesRes.blocks);
         }
+
         if (expensesRes.summary) {
           setExpenseSummary(expensesRes.summary);
         }
@@ -126,7 +120,7 @@ export default function TodayPage() {
       }
     }
     load();
-  }, []);
+  }, [user]);
 
   const displayName =
     profile?.display_name ||

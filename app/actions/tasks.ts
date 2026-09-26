@@ -132,7 +132,7 @@ const DEFAULT_INITIAL_TASKS: Omit<TaskItem, "user_id">[] = [
   },
 ];
 
-export async function getTasksAction(): Promise<{ tasks: TaskItem[]; error?: string }> {
+export async function getTasksAction(): Promise<{ tasks: TaskItem[]; error?: string; isGuest?: boolean }> {
   try {
     const supabase = await createClient();
     const {
@@ -140,16 +140,44 @@ export async function getTasksAction(): Promise<{ tasks: TaskItem[]; error?: str
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return { tasks: DEFAULT_INITIAL_TASKS as TaskItem[] };
+      return { tasks: [], isGuest: true };
     }
 
     const { data, error } = await supabase
       .from("tasks")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      return { tasks: DEFAULT_INITIAL_TASKS as TaskItem[] };
+    if (error) {
+      return { tasks: [], error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      // User is brand new in Supabase. Seed initial tasks once into their database account.
+      const initialInserts = DEFAULT_INITIAL_TASKS.map((t) => ({
+        title: t.title,
+        description: t.description || null,
+        priority: t.priority,
+        difficulty: t.difficulty,
+        xp_value: t.xp_value,
+        due_date: t.due_date || null,
+        due_time: t.due_time || null,
+        estimated_duration_minutes: t.estimated_duration_minutes || null,
+        is_recurring: t.is_recurring,
+        is_completed: false,
+        user_id: user.id,
+      }));
+
+      const { data: seeded, error: seedError } = await supabase
+        .from("tasks")
+        .insert(initialInserts)
+        .select();
+
+      if (seedError || !seeded) {
+        return { tasks: [] };
+      }
+      return { tasks: seeded as TaskItem[] };
     }
 
     const tasks: TaskItem[] = data.map((t) => ({
@@ -176,7 +204,7 @@ export async function getTasksAction(): Promise<{ tasks: TaskItem[]; error?: str
     return { tasks };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error fetching tasks";
-    return { tasks: DEFAULT_INITIAL_TASKS as TaskItem[], error: message };
+    return { tasks: [], error: message };
   }
 }
 

@@ -3,10 +3,8 @@
 import React, { useState } from "react";
 import { X, Plus, Wallet, Calendar, Tag, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  CreateExpenseInput,
-  DEFAULT_EXPENSE_CATEGORIES,
-} from "@/app/actions/expenses";
+import { CreateExpenseInput } from "@/app/actions/expenses";
+import { DEFAULT_EXPENSE_CATEGORIES } from "@/lib/constants/expenses";
 
 interface CreateExpenseModalProps {
   isOpen: boolean;

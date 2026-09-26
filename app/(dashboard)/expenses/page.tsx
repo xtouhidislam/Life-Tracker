@@ -4,15 +4,15 @@ import React, { useState, useEffect, useTransition } from "react";
 import { Plus, Wallet, Sparkles, Filter, Download, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  ExpenseItem,
-  CategoryBudget,
-  ExpenseSummary,
-  CreateExpenseInput,
+  type ExpenseItem,
+  type CategoryBudget,
+  type ExpenseSummary,
+  type CreateExpenseInput,
   getExpensesAction,
   createExpenseAction,
   deleteExpenseAction,
-  DEFAULT_EXPENSE_CATEGORIES,
 } from "@/app/actions/expenses";
+import { DEFAULT_EXPENSE_CATEGORIES } from "@/lib/constants/expenses";
 import { BudgetOverviewCards } from "@/components/expenses/BudgetOverviewCards";
 import { ExpenseBreakdownChart } from "@/components/expenses/ExpenseBreakdownChart";
 import { CategoryBudgetCard } from "@/components/expenses/CategoryBudgetCard";
@@ -26,6 +26,7 @@ import {
   addLocalExpense,
   deleteLocalExpense,
 } from "@/lib/storage/local-store";
+import { useAuth } from "@/hooks/useAuth";
 
 function computeLocalSummaries(items: ExpenseItem[]): { categories: CategoryBudget[]; summary: ExpenseSummary } {
   const total_spent = items.reduce((acc, curr) => acc + curr.amount, 0);
@@ -76,16 +77,15 @@ function computeLocalSummaries(items: ExpenseItem[]): { categories: CategoryBudg
 }
 
 export default function ExpensesPage() {
+  const { user } = useAuth();
   const [filterPeriod, setFilterPeriod] = useState<"this_month" | "last_30_days" | "all">("this_month");
-  const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
-  const [categories, setCategories] = useState<CategoryBudget[]>([]);
-  const [summary, setSummary] = useState<ExpenseSummary>({
-    total_spent: 0,
-    total_budget: 50000,
-    remaining_allowance: 50000,
-    daily_average: 0,
-    currency: "BDT",
-    expenses_count: 0,
+  
+  const [expenses, setExpenses] = useState<ExpenseItem[]>(() => getLocalExpenses());
+  const [categories, setCategories] = useState<CategoryBudget[]>(() => {
+    return computeLocalSummaries(getLocalExpenses()).categories;
+  });
+  const [summary, setSummary] = useState<ExpenseSummary>(() => {
+    return computeLocalSummaries(getLocalExpenses()).summary;
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -95,22 +95,20 @@ export default function ExpensesPage() {
   // Load initial data with local persistence fallback
   const loadData = async (period = filterPeriod) => {
     const localItems = getLocalExpenses();
-    if (localItems.length > 0) {
-      const { categories: localCats, summary: localSum } = computeLocalSummaries(localItems);
-      setExpenses(localItems);
-      setCategories(localCats);
-      setSummary(localSum);
-    }
+    const { categories: localCats, summary: localSum } = computeLocalSummaries(localItems);
+    setExpenses(localItems);
+    setCategories(localCats);
+    setSummary(localSum);
+
+    if (!user) return;
 
     try {
       const res = await getExpensesAction(period);
-      if (res.success && res.expenses) {
-        if (res.expenses.length > 0 || localItems.length === 0) {
-          setExpenses(res.expenses);
-          setCategories(res.categories);
-          setSummary(res.summary);
-          saveLocalExpenses(res.expenses);
-        }
+      if (res.success && res.expenses && res.expenses.length > 0) {
+        setExpenses(res.expenses);
+        setCategories(res.categories);
+        setSummary(res.summary);
+        saveLocalExpenses(res.expenses);
       }
     } catch (err) {
       console.warn("Expenses cloud sync fallback to local store:", err);
@@ -119,7 +117,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     loadData(filterPeriod);
-  }, [filterPeriod]);
+  }, [filterPeriod, user]);
 
   // Handle new expense creation
   const handleCreateExpense = async (input: CreateExpenseInput) => {

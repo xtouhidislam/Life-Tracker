@@ -23,6 +23,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { getLocalUserStats } from "@/lib/storage/local-store";
 
 interface MenuItem {
   name: string;
@@ -52,10 +53,15 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { stats, signOut } = useAuth();
+  const [localStats, setLocalStats] = useState(() => getLocalUserStats());
 
-  const level = stats?.current_level ?? 1;
-  const streak = stats?.current_streak ?? 0;
-  const totalXp = stats?.total_xp ?? 0;
+  React.useEffect(() => {
+    setLocalStats(getLocalUserStats());
+  }, [pathname]);
+
+  const level = stats?.current_level ?? localStats.current_level ?? 1;
+  const streak = stats?.current_streak ?? localStats.current_streak ?? 0;
+  const totalXp = stats?.total_xp ?? localStats.total_xp ?? 0;
 
   const nextLevelXp = 50 * level * level + 50 * level;
   const prevLevelXp = 50 * (level - 1) * (level - 1) + 50 * (level - 1);

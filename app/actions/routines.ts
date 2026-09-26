@@ -19,7 +19,7 @@ export async function getRoutinesAction(type: "weekday" | "weekend" = "weekday")
     const baseBlocks = type === "weekday" ? DEFAULT_WEEKDAY_BLOCKS : DEFAULT_WEEKEND_BLOCKS;
 
     if (!user) {
-      return { success: true, blocks: baseBlocks, isCustom: false };
+      return { success: true, blocks: [], isCustom: false, isGuest: true };
     }
 
     const todayStr = new Date().toISOString().split("T")[0];

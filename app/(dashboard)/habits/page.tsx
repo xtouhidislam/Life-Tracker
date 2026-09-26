@@ -45,8 +45,8 @@ const FILTER_TABS = [
 ];
 
 export default function HabitsPage() {
-  const { refreshProfile } = useAuth();
-  const [habits, setHabits] = useState<HabitItem[]>([]);
+  const { user, refreshProfile } = useAuth();
+  const [habits, setHabits] = useState<HabitItem[]>(() => getLocalHabits());
   const [activeTab, setActiveTab] = useState("all");
   const [viewSection, setViewSection] = useState<"habits" | "achievements">("habits");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,20 +56,13 @@ export default function HabitsPage() {
 
   // Load habits on mount with local storage hydration
   useEffect(() => {
-    const stored = getLocalHabits();
-    if (stored && stored.length > 0) {
-      setHabits(stored);
-    }
+    setHabits(getLocalHabits());
+    if (!user) return;
 
     async function load() {
       try {
         const res = await getHabitsAction();
-        if (res.habits && !res.error) {
-          if (res.habits.length > 0 || stored.length === 0) {
-            setHabits(res.habits);
-            saveLocalHabits(res.habits);
-          }
-        } else if (stored.length === 0 && res.habits) {
+        if (res.habits && res.habits.length > 0) {
           setHabits(res.habits);
           saveLocalHabits(res.habits);
         }
@@ -78,7 +71,7 @@ export default function HabitsPage() {
       }
     }
     load();
-  }, []);
+  }, [user]);
 
   // Handle habit check in
   const handleToggle = async (

@@ -45,13 +45,8 @@ export interface CreateExpenseInput {
   currency?: string;
 }
 
-export const DEFAULT_EXPENSE_CATEGORIES = [
-  { name: "Food & Dining", color: "#10B981", default_budget: 12000 },
-  { name: "Education & Tech Tools", color: "#154D38", default_budget: 8000 },
-  { name: "Transport & Fuel", color: "#0D9488", default_budget: 6000 },
-  { name: "Bills & Utilities", color: "#F59E0B", default_budget: 10000 },
-  { name: "Personal & Health", color: "#6366F1", default_budget: 14000 },
-];
+import { DEFAULT_EXPENSE_CATEGORIES } from "@/lib/constants/expenses";
+export { DEFAULT_EXPENSE_CATEGORIES };
 
 const INITIAL_EXPENSES: ExpenseItem[] = [];
 
@@ -66,6 +61,7 @@ export async function getExpensesAction(
   categories: CategoryBudget[];
   summary: ExpenseSummary;
   error?: string;
+  isGuest?: boolean;
 }> {
   // Allowlist the filterPeriod parameter to prevent injection
   const validPeriods = ["this_month", "last_30_days", "all"] as const;
@@ -77,7 +73,8 @@ export async function getExpensesAction(
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return computeFallbackDataset([]);
+      const fb = computeFallbackDataset([]);
+      return { ...fb, isGuest: true };
     }
 
     // 1. Fetch user categories
