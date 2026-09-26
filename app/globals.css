@@ -1,0 +1,150 @@
+@import url("https://fonts.cdnfonts.com/css/sf-pro-display");
+@import "tailwindcss";
+
+:root {
+  /* Clean Minimalist Theme (Inspired by Donezo Aesthetic) */
+  --bg-base: #F4F5F7;
+  --bg-subtle: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --bg-surface-glass: rgba(255, 255, 255, 0.95);
+  --bg-surface-elevated: #F8F9FA;
+  
+  --border-subtle: #E5E7EB;
+  --border-strong: #D1D5DB;
+  
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --text-inverse: #FFFFFF;
+  
+  /* Primary Brand: Deep Luxury Forest Green & Vibrant Mint */
+  --accent-forest: #154D38;
+  --accent-forest-hover: #0F382A;
+  --accent-mint: #10B981;
+  --accent-mint-subtle: #E8F5E9;
+  --accent-mint-glow: rgba(16, 185, 129, 0.25);
+  
+  --accent-violet: #6366F1;
+  --accent-cyan: #0284C7;
+  --accent-cyan-subtle: #E0F2FE;
+  --accent-amber: #D97706;
+  --accent-amber-subtle: #FEF3C7;
+  --accent-rose: #E11D48;
+  --accent-rose-subtle: #FFE4E6;
+
+  --font-sf-pro: "SF Pro Display", "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sf-mono: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+@theme inline {
+  --color-bg-base: var(--bg-base);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-surface-glass: var(--bg-surface-glass);
+  
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  
+  --color-accent-forest: var(--accent-forest);
+  --color-accent-mint: var(--accent-mint);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-rose: var(--accent-rose);
+  
+  --font-sans: var(--font-sf-pro);
+  --font-mono: var(--font-sf-mono);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-sf-pro);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  letter-spacing: -0.015em;
+}
+
+/* Custom Minimalist Clean Surfaces */
+.glass-panel {
+  background: var(--bg-surface-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 4px 14px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  border-color: #D1D5DB;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+/* Featured Hero Forest Green Card (Directly from Donezo Reference) */
+.hero-forest-card {
+  background-color: #154D38;
+  color: #FFFFFF;
+  border-radius: 1.25rem;
+  box-shadow: 0 8px 24px rgba(21, 77, 56, 0.2);
+}
+
+/* Striped Diagonal Pattern (As seen in Project Analytics and Project Progress) */
+.hatched-pattern {
+  background-color: #F3F4F6;
+  background-image: repeating-linear-gradient(
+    45deg,
+    #E5E7EB,
+    #E5E7EB 2px,
+    #F3F4F6 2px,
+    #F3F4F6 6px
+  );
+}
+
+/* Custom Clean Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

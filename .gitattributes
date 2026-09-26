@@ -1,0 +1,11 @@
+﻿# Normalize line endings to LF on commit (Windows-safe)
+* text=auto eol=lf
+
+# Explicitly set binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
