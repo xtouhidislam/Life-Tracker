@@ -21,6 +21,7 @@ import {
   HelpCircle,
   LogOut,
   Trophy,
+  Dumbbell,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getLocalUserStats } from "@/lib/storage/local-store";
@@ -39,6 +40,7 @@ const PRIMARY_MENU: MenuItem[] = [
   { name: "Analytics", href: "/overview", icon: BarChart3 },
   { name: "Habits", href: "/habits", icon: Flame },
   { name: "Routine", href: "/routine", icon: Sunrise },
+  { name: "Calisthenics", href: "/exercise", icon: Dumbbell, badge: "New" },
   { name: "Roadmap", href: "/roadmap", icon: Compass },
   { name: "Focus Mode", href: "/focus", icon: Target },
   { name: "Expenses", href: "/expenses", icon: Wallet },

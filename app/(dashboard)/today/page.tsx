@@ -15,6 +15,7 @@ import {
   ArrowRight,
   TrendingUp,
   Target,
+  Dumbbell,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getTasksAction, toggleTaskCompletionAction, type TaskItem } from "@/app/actions/tasks";
@@ -47,6 +48,7 @@ import {
 import { DashboardKPIs } from "@/components/dashboard/DashboardKPIs";
 import { OverallScoreCard } from "@/components/dashboard/OverallScoreCard";
 import { WeeklyAnalyticsCard } from "@/components/dashboard/WeeklyAnalyticsCard";
+import { WEEKLY_SCHEDULE } from "@/lib/exercises/calisthenics-data";
 
 export default function TodayPage() {
   const { user, profile, stats, refreshProfile } = useAuth();
@@ -69,6 +71,11 @@ export default function TodayPage() {
   const isWeekend = useMemo(() => {
     const d = new Date().getDay();
     return d === 0 || d === 6;
+  }, []);
+
+  const todayWorkoutSchedule = useMemo(() => {
+    const d = new Date().getDay();
+    return WEEKLY_SCHEDULE.find((item) => item.dayIndex === d) || WEEKLY_SCHEDULE[1];
   }, []);
 
   const [localStats, setLocalStats] = useState(() => getLocalUserStats());
@@ -478,6 +485,49 @@ export default function TodayPage() {
                 <Button variant="primary" className="w-full text-xs font-bold gap-2">
                   <Play className="h-3.5 w-3.5 fill-white" />
                   <span>Start Routine Sprint</span>
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          {/* Calisthenics 6-Month Protocol Card */}
+          <Card className="bg-gradient-to-br from-zinc-900 to-zinc-950 text-white border border-zinc-800 shadow-2xs overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                  Calisthenics Protocol
+                </span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full font-bold">
+                  +25 XP
+                </span>
+              </div>
+
+              <CardTitle className="text-base font-bold text-white mt-1.5 flex items-center gap-2">
+                <Dumbbell className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>{todayWorkoutSchedule.focus.split("(")[0]}</span>
+              </CardTitle>
+
+              <div className="flex items-center gap-2 text-xs text-zinc-400 mt-1">
+                <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                <span>
+                  {todayWorkoutSchedule.isRestDay
+                    ? "Full Rest / Active Recovery Day"
+                    : `${todayWorkoutSchedule.dayName} · ~${todayWorkoutSchedule.durationMinutes} min session`}
+                </span>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-2">
+              <p className="text-xs text-zinc-300 line-clamp-2 mb-3.5 leading-relaxed">
+                {todayWorkoutSchedule.description}
+              </p>
+
+              <Link href="/exercise" className="block w-full">
+                <Button className="w-full text-xs font-bold gap-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-xs">
+                  <Play className="h-3.5 w-3.5 fill-zinc-950" />
+                  <span>
+                    {todayWorkoutSchedule.isRestDay ? "View Recovery Protocol" : "Launch Calisthenics Hub"}
+                  </span>
                 </Button>
               </Link>
             </CardContent>

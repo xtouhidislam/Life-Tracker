@@ -101,6 +101,7 @@ export function RoutineBlockCard({
 
   const energy = getEnergyBadge(block.energy_level);
   const isFocusable = ["Work", "Study", "Knowledge", "Trading", "Education"].includes(block.activity_type);
+  const isWorkout = block.activity_type === "Health" || block.title.toLowerCase().includes("exercise");
 
   return (
     <div
@@ -227,6 +228,16 @@ export function RoutineBlockCard({
             >
               <Play className="h-3 w-3 fill-[#154D38]" />
               <span>Focus</span>
+            </Link>
+          )}
+
+          {isWorkout && !block.is_completed && (
+            <Link
+              href="/exercise"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-[#154D38] border border-emerald-200 transition-all hover:scale-105"
+            >
+              <Dumbbell className="h-3 w-3" />
+              <span>Workout</span>
             </Link>
           )}
 

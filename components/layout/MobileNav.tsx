@@ -16,6 +16,7 @@ import {
   Compass,
   Wallet,
   Settings,
+  Dumbbell,
   X,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const PRIMARY_TABS = [
 ];
 
 const MORE_TABS = [
+  { name: "Calisthenics", href: "/exercise", icon: Dumbbell, desc: "6-Month workout protocol" },
   { name: "Overview", href: "/overview", icon: BarChart3, desc: "Life analytics & trends" },
   { name: "Calendar", href: "/calendar", icon: Calendar, desc: "Schedule & time-blocks" },
   { name: "Routine", href: "/routine", icon: Sunrise, desc: "Morning/Evening timeline" },
