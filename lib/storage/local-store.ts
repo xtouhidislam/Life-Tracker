@@ -12,12 +12,15 @@ import type { ExpenseItem } from "@/app/actions/expenses";
 import type { FocusSessionRecord } from "@/app/actions/focus";
 import type { RoutineBlock } from "@/lib/routines/routine-utils";
 import { DEFAULT_WEEKDAY_BLOCKS, DEFAULT_WEEKEND_BLOCKS } from "@/lib/routines/routine-utils";
+import type { ForestTreeRecord } from "@/lib/focus/forest-data";
+import { DEFAULT_ISLAND_TREES } from "@/lib/focus/forest-data";
 
 const KEYS = {
   TASKS: "lifequest_tasks_v2",
   HABITS: "lifequest_habits_v2",
   EXPENSES: "lifequest_expenses_v2",
   FOCUS: "lifequest_focus_v2",
+  FOREST: "lifequest_forest_trees_v2",
   ROUTINES_WEEKDAY: "lifequest_routines_weekday_v2",
   ROUTINES_WEEKEND: "lifequest_routines_weekend_v2",
   STATS: "lifequest_user_stats_v2",
@@ -460,6 +463,37 @@ export function addLocalFocusSession(session: FocusSessionRecord): FocusSessionR
 
   return next;
 }
+
+// ---------------------------------------------------------------------------
+// FOREST TREES & ISOMETRIC GARDEN
+// ---------------------------------------------------------------------------
+
+export function getLocalForestTrees(): ForestTreeRecord[] {
+  if (!isClient()) return DEFAULT_ISLAND_TREES;
+  const raw = localStorage.getItem(KEYS.FOREST);
+  if (!raw) {
+    localStorage.setItem(KEYS.FOREST, JSON.stringify(DEFAULT_ISLAND_TREES));
+    return DEFAULT_ISLAND_TREES;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return DEFAULT_ISLAND_TREES;
+  }
+}
+
+export function saveLocalForestTrees(trees: ForestTreeRecord[]): void {
+  if (!isClient()) return;
+  localStorage.setItem(KEYS.FOREST, JSON.stringify(trees));
+}
+
+export function addLocalForestTree(tree: ForestTreeRecord): ForestTreeRecord[] {
+  const current = getLocalForestTrees();
+  const next = [tree, ...current];
+  saveLocalForestTrees(next);
+  return next;
+}
+
 
 // ---------------------------------------------------------------------------
 // ROUTINES

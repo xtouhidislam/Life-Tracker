@@ -8,6 +8,7 @@ import {
   Clock,
   TrendingUp,
   Award,
+  TreePine,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { getTasksAction, type TaskItem } from "@/app/actions/tasks";
@@ -19,7 +20,12 @@ import { PomodoroTimer } from "@/components/focus/PomodoroTimer";
 import { FocusHistoryList } from "@/components/focus/FocusHistoryList";
 import { XPToast } from "@/components/tasks/XPToast";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { getLocalFocusSessions, getLocalTasks } from "@/lib/storage/local-store";
+import {
+  getLocalFocusSessions,
+  getLocalTasks,
+  getLocalForestTrees,
+} from "@/lib/storage/local-store";
+import { ForestTreeRecord } from "@/lib/focus/forest-data";
 
 function FocusContent() {
   const searchParams = useSearchParams();
@@ -30,6 +36,7 @@ function FocusContent() {
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [sessions, setSessions] = useState<FocusSessionRecord[]>([]);
+  const [trees, setTrees] = useState<ForestTreeRecord[]>(() => getLocalForestTrees());
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [totalSessions, setTotalSessions] = useState(0);
   const [totalXp, setTotalXp] = useState(0);
@@ -45,7 +52,11 @@ function FocusContent() {
     // 1. Instant local persistence hydration
     const localSessions = getLocalFocusSessions();
     const localTasks = getLocalTasks();
+    const localTrees = getLocalForestTrees();
+
     if (localTasks.length > 0) setTasks(localTasks);
+    if (localTrees.length > 0) setTrees(localTrees);
+
     if (localSessions.length > 0) {
       setSessions(localSessions);
       const mins = Math.round(localSessions.reduce((acc, s) => acc + s.duration_seconds, 0) / 60);
@@ -85,7 +96,7 @@ function FocusContent() {
 
   const handleSessionCompleted = (earnedXp: number, minutes: number) => {
     setLastEarnedXp(earnedXp);
-    setToastMessage(`Logged ${minutes}m of deep work focus!`);
+    setToastMessage(`Cultivated focus tree & logged ${minutes}m of deep work!`);
     setShowXpToast(true);
     setTimeout(() => setShowXpToast(false), 3500);
 
@@ -93,9 +104,12 @@ function FocusContent() {
     setTotalSessions((prev) => prev + 1);
     setTotalXp((prev) => prev + earnedXp);
 
-    // Refresh history from local store & server
+    // Refresh history & trees from local store
     const local = getLocalFocusSessions();
     if (local.length > 0) setSessions(local);
+
+    const refreshedTrees = getLocalForestTrees();
+    setTrees(refreshedTrees);
 
     getFocusSessionsAction().then((res) => {
       if (res.sessions && res.sessions.length > 0) setSessions(res.sessions);
@@ -128,19 +142,25 @@ function FocusContent() {
         message={toastMessage}
       />
 
-      {/* Header matching Donezo aesthetic */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-zinc-900">
-            Time Tracker
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-3xl font-black tracking-tight text-zinc-900">
+              Focus Forest & Time Tracker
+            </h1>
+            <span className="text-xs font-bold text-[#154D38] bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+              <TreePine className="h-3 w-3" />
+              <span>Flora Ecosystem</span>
+            </span>
+          </div>
           <p className="text-xs text-zinc-500 mt-1">
-            Immersive Pomodoro timer designed for distraction-free deep work.
+            Grow trees and flourish a living botanical forest through distraction-free deep work.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+          <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200">
             Daily Goal: {formattedHours} / 3h 00m ({targetPct}%)
           </span>
         </div>
@@ -155,9 +175,9 @@ function FocusContent() {
           trend={{ value: `${targetPct}% of 3h daily goal`, positive: true }}
         />
         <StatCard
-          title="Completed Sprints"
-          value={`${totalSessions} Sessions`}
-          trend={{ value: "+45m vs avg", positive: true }}
+          title="Forest Population"
+          value={`${trees.length} Trees`}
+          subtext="Healthy thriving forest"
         />
         <StatCard
           title="Focus XP Earned"
@@ -165,18 +185,20 @@ function FocusContent() {
           subtext="Awarded from deep work intervals"
         />
         <StatCard
-          title="Optimal Rhythm"
-          value="50m / 10m"
-          subtext="Engineering Deep Work Sprint"
+          title="Completed Sprints"
+          value={`${totalSessions} Sessions`}
+          trend={{ value: "+45m vs avg", positive: true }}
         />
       </div>
 
-      {/* Luxury Pomodoro Timer Component */}
+      {/* Luxury Pomodoro Timer with Live Growing Forest Island */}
       <PomodoroTimer
         initialTitle={initialTitleParam}
         initialDurationMinutes={initialDurationParam}
         availableTasks={availableTasks}
         onSessionCompleted={handleSessionCompleted}
+        trees={trees}
+        totalFocusMinutes={totalMinutes}
       />
 
       {/* Completed Sessions Log */}

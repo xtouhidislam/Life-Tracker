@@ -16,6 +16,8 @@ import {
   Target,
   Clock,
   Layers,
+  Sprout,
+  Flower2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,13 +27,25 @@ import { triggerHaptic } from "@/lib/ui/haptics";
 import { triggerCelebration } from "@/lib/ui/celebration";
 import { recordFocusSessionAction } from "@/app/actions/focus";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { addLocalFocusSession } from "@/lib/storage/local-store";
+import {
+  addLocalFocusSession,
+  getLocalForestTrees,
+  addLocalForestTree,
+} from "@/lib/storage/local-store";
+import { IsometricForestIsland } from "@/components/focus/IsometricForestIsland";
+import {
+  PLANT_SPECIES,
+  getPlantGrowthStage,
+  ForestTreeRecord,
+} from "@/lib/focus/forest-data";
 
 interface PomodoroTimerProps {
   initialTitle?: string;
   initialDurationMinutes?: number;
   availableTasks?: { id: string; title: string; category?: string }[];
   onSessionCompleted?: (earnedXp: number, minutes: number) => void;
+  trees?: ForestTreeRecord[];
+  totalFocusMinutes?: number;
 }
 
 const PRESETS = [
@@ -54,6 +68,8 @@ export function PomodoroTimer({
   initialDurationMinutes = 25,
   availableTasks = [],
   onSessionCompleted,
+  trees = [],
+  totalFocusMinutes = 0,
 }: PomodoroTimerProps) {
   const { refreshProfile } = useAuth();
 
@@ -62,6 +78,9 @@ export function PomodoroTimer({
   const [isRunning, setIsRunning] = useState(false);
   const [activeTaskTitle, setActiveTaskTitle] = useState(initialTitle || "Zenin AI Core Architecture");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  // Forest Plant Species Choice (default: Celestial Moon Tree)
+  const [selectedSpeciesId, setSelectedSpeciesId] = useState<string>("moon_tree");
 
   // Sound settings
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -194,7 +213,7 @@ export function PomodoroTimer({
 
     const earnedXp = res.earnedXp || Math.round(sessionSeconds / 180);
 
-    // Persist immediately to local storage
+    // 1. Persist focus session record
     addLocalFocusSession({
       id: "focus-" + Date.now(),
       task_id: selectedTaskId,
@@ -207,6 +226,36 @@ export function PomodoroTimer({
       completed_at: new Date().toISOString(),
     });
 
+    // 2. Permanently plant the matured tree onto the user's Forest Island!
+    const existingTrees = getLocalForestTrees();
+    const takenCoords = new Set(existingTrees.map((t) => `${t.tile_x}-${t.tile_y}`));
+
+    let plantX = 2;
+    let plantY = 2;
+    let placed = false;
+
+    // Search for an open slot on the 5x5 grid
+    for (let r = 0; r < 5 && !placed; r++) {
+      for (let c = 0; c < 5 && !placed; c++) {
+        if (!takenCoords.has(`${c}-${r}`)) {
+          plantX = c;
+          plantY = r;
+          placed = true;
+        }
+      }
+    }
+
+    addLocalForestTree({
+      id: "tree-" + Date.now(),
+      species_id: selectedSpeciesId,
+      tile_x: plantX,
+      tile_y: plantY,
+      stage: "mature",
+      duration_minutes: selectedMinutes,
+      task_title: activeTaskTitle,
+      planted_at: new Date().toISOString(),
+    });
+
     await refreshProfile();
 
     if (onSessionCompleted) {
@@ -216,24 +265,46 @@ export function PomodoroTimer({
     setSecondsRemaining(selectedMinutes * 60);
   };
 
-  const progressPct = Math.round(
-    ((selectedMinutes * 60 - secondsRemaining) / (selectedMinutes * 60)) * 100
-  );
+  const elapsedSeconds = selectedMinutes * 60 - secondsRemaining;
+  const targetSeconds = selectedMinutes * 60;
+  const progressPct = Math.round((elapsedSeconds / targetSeconds) * 100);
+
+  // Plant growth lifecycle badge
+  const growthStage = getPlantGrowthStage(progressPct);
+  const stageDescription = {
+    seed: "🌱 Stage 1: Germinating Seed (0–15%)",
+    sprout: "🌿 Stage 2: Sprouting Shoots (15–45%)",
+    sapling: "🪴 Stage 3: Branching Sapling (45–80%)",
+    mature: "🌸 Stage 4: Mature Flourishing Canopy (80–100%)",
+  }[growthStage];
+
+  const currentSpeciesObj = PLANT_SPECIES.find((s) => s.id === selectedSpeciesId) || PLANT_SPECIES[0];
 
   return (
     <div className="space-y-6">
-      {/* Luxury Time Tracker Card (Inspired directly by Donezo Reference) */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#123E2E] via-[#0E3425] to-[#071A13] text-white p-7 sm:p-10 shadow-xl border border-[#164E3A]">
+      {/* Visual Live Growing Forest Island Component */}
+      <IsometricForestIsland
+        isLiveSession={true}
+        activeSpeciesId={selectedSpeciesId}
+        elapsedSeconds={elapsedSeconds}
+        targetSeconds={targetSeconds}
+        onSelectSpecies={(spId) => setSelectedSpeciesId(spId)}
+        trees={trees}
+        totalFocusMinutes={totalFocusMinutes}
+      />
+
+      {/* Luxury Time Tracker Card */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#123E2E] via-[#0E3425] to-[#071A13] text-white p-7 sm:p-9 shadow-xl border border-[#164E3A]">
         {/* Subtle organic silk wave texture overlay */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/4 -mb-20 w-72 h-72 bg-emerald-400/5 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col items-center text-center space-y-6">
+        <div className="relative z-10 flex flex-col items-center text-center space-y-5">
           {/* Top Pill & Task Link */}
           <div className="flex flex-wrap items-center justify-center gap-3">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-xs font-bold text-emerald-200">
               <Target className="h-3.5 w-3.5 text-emerald-400" />
-              <span>TIME TRACKER & DEEP WORK SPRINT</span>
+              <span>CULTIVATING: {currentSpeciesObj.name.toUpperCase()}</span>
             </span>
 
             <span className="text-xs text-emerald-200/80 font-medium">
@@ -241,33 +312,40 @@ export function PomodoroTimer({
             </span>
           </div>
 
-          {/* Giant Digital Monospace Clock (matching 01:24:08 from screenshot) */}
-          <div className="py-2">
-            <div className="text-6xl sm:text-8xl font-black font-mono tracking-tight text-white select-none drop-shadow-md">
+          {/* Plant Growth Phase Pill */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-mono font-bold text-emerald-200">
+            <Sprout className="h-3.5 w-3.5 text-emerald-300" />
+            <span>{stageDescription}</span>
+          </div>
+
+          {/* Giant Digital Monospace Clock */}
+          <div className="py-1">
+            <div className="text-6xl sm:text-7xl md:text-8xl font-black font-mono tracking-tight text-white select-none drop-shadow-md">
               {formatTime(secondsRemaining)}
             </div>
             <div className="text-xs text-emerald-300/80 font-medium mt-2">
-              {isRunning ? "Focus sprint in progress • Stay in the zone" : "Paused • Ready to sprint"}
+              {isRunning
+                ? "Active focus sprint • Your plant & companion flora are flourishing"
+                : "Timer paused • Start to grow your island tree"}
             </div>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress Bar with Growth Indicator */}
           <div className="w-full max-w-md space-y-1.5">
-            <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden border border-white/10">
+            <div className="h-2.5 w-full bg-white/10 rounded-full overflow-hidden border border-white/10">
               <div
-                className="h-full bg-emerald-400 rounded-full transition-all duration-1000 shadow-[0_0_8px_#34d399]"
-                style={{ width: `${progressPct}%` }}
+                className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full transition-all duration-1000 shadow-[0_0_8px_#34d399]"
+                style={{ width: `${Math.max(4, progressPct)}%` }}
               />
             </div>
             <div className="flex justify-between text-[11px] text-emerald-200/70 font-mono">
               <span>{progressPct}% elapsed</span>
-              <span>{Math.round(secondsRemaining / 60)}m remaining</span>
+              <span>{Math.round(secondsRemaining / 60)}m to maturity</span>
             </div>
           </div>
 
-          {/* Large Round Controls (Inspired by Donezo reference Pause & Stop buttons) */}
-          <div className="flex items-center justify-center gap-4 pt-2">
-            {/* Play/Pause Button */}
+          {/* Round Controls: Play/Pause and Reset */}
+          <div className="flex items-center justify-center gap-4 pt-1">
             <button
               onClick={handleStartPause}
               className="h-16 w-16 rounded-full bg-white hover:bg-emerald-50 text-[#154D38] flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95"
@@ -280,7 +358,6 @@ export function PomodoroTimer({
               )}
             </button>
 
-            {/* Stop/Reset Button */}
             <button
               onClick={() => handleReset()}
               className="h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95"
@@ -294,7 +371,8 @@ export function PomodoroTimer({
           <div className="text-xs text-emerald-200/80 flex items-center gap-1.5 pt-1">
             <Sparkles className="h-3.5 w-3.5 text-amber-300" />
             <span>
-              Awards <strong>+{Math.max(10, Math.floor(selectedMinutes / 25) * 10)} XP</strong> upon session completion
+              Awards <strong>+{Math.max(10, Math.floor(selectedMinutes / 25) * 10)} XP</strong> and plants a mature{" "}
+              <strong>{currentSpeciesObj.name}</strong> upon completion
             </span>
           </div>
         </div>
