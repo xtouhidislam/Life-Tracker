@@ -499,6 +499,52 @@ export function toggleLocalRoutineBlock(type: "weekday" | "weekend", blockId: st
   return next;
 }
 
+export function updateLocalRoutineBlock(
+  type: "weekday" | "weekend",
+  updatedBlock: RoutineBlock
+): RoutineBlock[] {
+  const current = getLocalRoutines(type);
+  const next = current.map((b) => (b.id === updatedBlock.id ? updatedBlock : b));
+  saveLocalRoutines(type, next);
+  return next;
+}
+
+export function addLocalRoutineBlock(
+  type: "weekday" | "weekend",
+  newBlock: RoutineBlock
+): RoutineBlock[] {
+  const current = getLocalRoutines(type);
+  const blockWithNum: RoutineBlock = {
+    ...newBlock,
+    num: current.length + 1,
+  };
+  const next = [...current, blockWithNum];
+  saveLocalRoutines(type, next);
+  return next;
+}
+
+export function deleteLocalRoutineBlock(
+  type: "weekday" | "weekend",
+  blockId: string
+): RoutineBlock[] {
+  const current = getLocalRoutines(type);
+  const next = current
+    .filter((b) => b.id !== blockId)
+    .map((b, idx) => ({
+      ...b,
+      num: idx + 1,
+    }));
+  saveLocalRoutines(type, next);
+  return next;
+}
+
+export function resetLocalRoutines(type: "weekday" | "weekend"): RoutineBlock[] {
+  const defaults = type === "weekday" ? DEFAULT_WEEKDAY_BLOCKS : DEFAULT_WEEKEND_BLOCKS;
+  saveLocalRoutines(type, defaults);
+  return defaults;
+}
+
+
 // ---------------------------------------------------------------------------
 // USER STATS & LEVELING
 // ---------------------------------------------------------------------------

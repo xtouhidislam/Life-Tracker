@@ -49,7 +49,7 @@ export async function getRoutinesAction(type: "weekday" | "weekend" = "weekday")
           routine_id: item.routine_id,
           num: idx + 1,
           title: item.title,
-          activity_type: (item.description as any) || "Work",
+          activity_type: (item.activity_type as any) || "Work",
           start_time: item.start_time.slice(0, 5),
           end_time: item.end_time.slice(0, 5),
           duration_minutes: item.duration_minutes,
@@ -85,6 +85,188 @@ export async function getRoutinesAction(type: "weekday" | "weekend" = "weekday")
   } catch (error) {
     console.error("Error in getRoutinesAction:", error);
     return { success: false, blocks: [], isCustom: false, isGuest: true };
+  }
+}
+
+export async function saveRoutineBlockAction(
+  type: "weekday" | "weekend",
+  block: RoutineBlock,
+  allBlocks: RoutineBlock[] = []
+) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: true, block };
+    }
+
+    // Check if the user already has a routine record for this type
+    let { data: dbRoutines } = await supabase
+      .from("routines")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("type", type)
+      .limit(1);
+
+    let routineId: string;
+
+    if (!dbRoutines || dbRoutines.length === 0) {
+      // Create user's custom routine record
+      const { data: newRoutine, error: routineError } = await supabase
+        .from("routines")
+        .insert({
+          user_id: user.id,
+          name: type === "weekday" ? "Weekday Routine" : "Weekend Routine",
+          type: type,
+          description: "Personal customized routine timetable",
+          is_active: true,
+        })
+        .select("id")
+        .single();
+
+      if (routineError || !newRoutine) {
+        throw routineError || new Error("Failed to initialize routine");
+      }
+
+      routineId = newRoutine.id;
+
+      // Seed all blocks from allBlocks (or defaults) into routine_items so other blocks aren't lost
+      const baseList = allBlocks.length > 0
+        ? allBlocks
+        : type === "weekday"
+        ? DEFAULT_WEEKDAY_BLOCKS
+        : DEFAULT_WEEKEND_BLOCKS;
+
+      const itemsToInsert = baseList.map((b, idx) => ({
+        routine_id: routineId,
+        title: b.id === block.id ? block.title : b.title,
+        description: b.id === block.id ? block.description : b.description,
+        activity_type: b.id === block.id ? block.activity_type : b.activity_type,
+        start_time: b.id === block.id ? `${block.start_time}:00` : `${b.start_time}:00`,
+        end_time: b.id === block.id ? `${block.end_time}:00` : `${b.end_time}:00`,
+        duration_minutes: b.id === block.id ? block.duration_minutes : b.duration_minutes,
+        order_index: idx,
+        energy_level: b.id === block.id ? block.energy_level : b.energy_level,
+        icon: b.id === block.id ? block.icon_name : b.icon_name,
+        xp_reward: b.id === block.id ? block.xp_reward : b.xp_reward,
+      }));
+
+      await supabase.from("routine_items").insert(itemsToInsert);
+
+      revalidatePath("/routine");
+      revalidatePath("/today");
+      return { success: true, block: { ...block, routine_id: routineId } };
+    } else {
+      routineId = dbRoutines[0].id;
+    }
+
+    const isExistingItem =
+      block.id &&
+      !block.id.startsWith("wd-") &&
+      !block.id.startsWith("we-") &&
+      !block.id.startsWith("custom-");
+
+    if (isExistingItem) {
+      await supabase
+        .from("routine_items")
+        .update({
+          title: block.title,
+          description: block.description,
+          activity_type: block.activity_type,
+          start_time: `${block.start_time}:00`,
+          end_time: `${block.end_time}:00`,
+          duration_minutes: block.duration_minutes,
+          energy_level: block.energy_level,
+          icon: block.icon_name,
+          xp_reward: block.xp_reward,
+        })
+        .eq("id", block.id);
+    } else {
+      const { data: insertedItem } = await supabase
+        .from("routine_items")
+        .insert({
+          routine_id: routineId,
+          title: block.title,
+          description: block.description,
+          activity_type: block.activity_type,
+          start_time: `${block.start_time}:00`,
+          end_time: `${block.end_time}:00`,
+          duration_minutes: block.duration_minutes,
+          order_index: block.num - 1,
+          energy_level: block.energy_level,
+          icon: block.icon_name,
+          xp_reward: block.xp_reward,
+        })
+        .select("id")
+        .single();
+
+      if (insertedItem) {
+        block.id = insertedItem.id;
+      }
+    }
+
+    revalidatePath("/routine");
+    revalidatePath("/today");
+    return { success: true, block };
+  } catch (error) {
+    console.error("Error in saveRoutineBlockAction:", error);
+    return { success: false, error };
+  }
+}
+
+export async function deleteRoutineBlockAction(
+  type: "weekday" | "weekend",
+  blockId: string
+) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: true };
+    }
+
+    if (!blockId.startsWith("wd-") && !blockId.startsWith("we-")) {
+      await supabase.from("routine_items").delete().eq("id", blockId);
+    }
+
+    revalidatePath("/routine");
+    revalidatePath("/today");
+    return { success: true };
+  } catch (error) {
+    console.error("Error in deleteRoutineBlockAction:", error);
+    return { success: false, error };
+  }
+}
+
+export async function resetRoutinesAction(type: "weekday" | "weekend") {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: true };
+    }
+
+    await supabase
+      .from("routines")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("type", type);
+
+    revalidatePath("/routine");
+    revalidatePath("/today");
+    return { success: true };
+  } catch (error) {
+    console.error("Error in resetRoutinesAction:", error);
+    return { success: false, error };
   }
 }
 
@@ -169,3 +351,4 @@ export async function toggleRoutineBlockCompletionAction(
     return { success: true, earnedXp: completed ? safeXp : 0 };
   }
 }
+

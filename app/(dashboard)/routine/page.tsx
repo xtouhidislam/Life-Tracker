@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   Clock,
   Layers,
+  Plus,
+  RotateCcw,
 } from "lucide-react";
 import {
   RoutineBlock,
@@ -19,6 +21,9 @@ import {
 import {
   getRoutinesAction,
   toggleRoutineBlockCompletionAction,
+  saveRoutineBlockAction,
+  deleteRoutineBlockAction,
+  resetRoutinesAction,
 } from "@/app/actions/routines";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { soundEffects } from "@/lib/audio/sound-effects";
@@ -27,12 +32,18 @@ import { triggerCelebration } from "@/lib/ui/celebration";
 import { RoutineBlockCard } from "@/components/routines/RoutineBlockCard";
 import { ActiveBlockHero } from "@/components/routines/ActiveBlockHero";
 import { RoutineStatsBar } from "@/components/routines/RoutineStatsBar";
+import { EditRoutineBlockModal } from "@/components/routines/EditRoutineBlockModal";
 import { XPToast } from "@/components/tasks/XPToast";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   getLocalRoutines,
   saveLocalRoutines,
   toggleLocalRoutineBlock,
+  updateLocalRoutineBlock,
+  addLocalRoutineBlock,
+  deleteLocalRoutineBlock,
+  resetLocalRoutines,
 } from "@/lib/storage/local-store";
 
 export default function RoutinePage() {
@@ -57,9 +68,14 @@ export default function RoutinePage() {
 
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
 
+  // Edit / Add Modal state
+  const [editingBlock, setEditingBlock] = useState<RoutineBlock | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   // XP Toast state
   const [showXpToast, setShowXpToast] = useState(false);
   const [lastEarnedXp, setLastEarnedXp] = useState(5);
+  const [toastMessage, setToastMessage] = useState("Routine Block Completed!");
 
   // Fetch routine data with local storage hydration
   useEffect(() => {
@@ -124,6 +140,7 @@ export default function RoutinePage() {
       }
 
       setLastEarnedXp(block.xp_reward);
+      setToastMessage("Routine Block Completed!");
       setShowXpToast(true);
       setTimeout(() => setShowXpToast(false), 3000);
     } else {
@@ -138,6 +155,88 @@ export default function RoutinePage() {
         block.xp_reward,
         block.title
       );
+      await refreshProfile();
+    });
+  };
+
+  // Open Edit Modal for a specific block
+  const handleOpenEdit = (block: RoutineBlock) => {
+    setEditingBlock(block);
+    setIsModalOpen(true);
+  };
+
+  // Open Modal to create a new block
+  const handleOpenAdd = () => {
+    setEditingBlock(null);
+    setIsModalOpen(true);
+  };
+
+  // Save changes from Edit/Add Modal
+  const handleSaveBlock = (blockToSave: RoutineBlock) => {
+    const isExisting = blocks.some((b) => b.id === blockToSave.id);
+
+    let nextBlocks: RoutineBlock[];
+    if (isExisting) {
+      nextBlocks = updateLocalRoutineBlock(activeTab, blockToSave);
+      setBlocks(nextBlocks);
+      soundEffects.playClick();
+      triggerHaptic("light");
+      setLastEarnedXp(blockToSave.xp_reward);
+      setToastMessage(`Task updated: "${blockToSave.title}"`);
+      setShowXpToast(true);
+      setTimeout(() => setShowXpToast(false), 3000);
+    } else {
+      nextBlocks = addLocalRoutineBlock(activeTab, blockToSave);
+      setBlocks(nextBlocks);
+      soundEffects.playClick();
+      triggerHaptic("medium");
+      setLastEarnedXp(blockToSave.xp_reward);
+      setToastMessage(`Added task: "${blockToSave.title}"`);
+      setShowXpToast(true);
+      setTimeout(() => setShowXpToast(false), 3000);
+    }
+
+    startTransition(async () => {
+      await saveRoutineBlockAction(activeTab, blockToSave, nextBlocks);
+      await refreshProfile();
+    });
+  };
+
+  // Delete a block
+  const handleDeleteBlock = (blockId: string) => {
+    const nextBlocks = deleteLocalRoutineBlock(activeTab, blockId);
+    setBlocks(nextBlocks);
+    soundEffects.playClick();
+    triggerHaptic("medium");
+    setToastMessage("Routine task deleted");
+    setShowXpToast(true);
+    setTimeout(() => setShowXpToast(false), 2500);
+
+    startTransition(async () => {
+      await deleteRoutineBlockAction(activeTab, blockId);
+      await refreshProfile();
+    });
+  };
+
+  // Reset to original handwritten default timetable
+  const handleResetDefaults = () => {
+    if (typeof window !== "undefined") {
+      const confirmReset = window.confirm(
+        `Reset the ${activeTab === "weekday" ? "Weekday" : "Weekend"} routine to the original digitized default blocks?`
+      );
+      if (!confirmReset) return;
+    }
+
+    const defaults = resetLocalRoutines(activeTab);
+    setBlocks(defaults);
+    soundEffects.playClick();
+    triggerHaptic("success");
+    setToastMessage("Routine reset to default rhythms");
+    setShowXpToast(true);
+    setTimeout(() => setShowXpToast(false), 3000);
+
+    startTransition(async () => {
+      await resetRoutinesAction(activeTab);
       await refreshProfile();
     });
   };
@@ -168,7 +267,16 @@ export default function RoutinePage() {
       <XPToast
         visible={showXpToast}
         xp={lastEarnedXp}
-        message="Routine Block Completed!"
+        message={toastMessage}
+      />
+
+      {/* Edit / Create Routine Block Modal */}
+      <EditRoutineBlockModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        block={editingBlock}
+        onSave={handleSaveBlock}
+        onDelete={handleDeleteBlock}
       />
 
       {/* Page Header */}
@@ -183,31 +291,52 @@ export default function RoutinePage() {
             </Badge>
           </div>
           <p className="text-sm text-zinc-500 mt-1">
-            Execution timetable digitized directly from your personal handwritten routine sheets.
+            Execution timetable digitized directly from your personal routine sheets. Click the pencil icon on any task to edit.
           </p>
         </div>
 
-        {/* Weekday / Weekend Tab Switcher */}
-        <div className="flex items-center p-1 rounded-2xl bg-zinc-100 border border-zinc-200 shadow-inner">
-          <button
-            onClick={() => setActiveTab("weekday")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === "weekday"
-                ? "bg-[#154D38] text-white shadow-sm"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
+        {/* Action Controls & Tab Switcher */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Weekday / Weekend Tab Switcher */}
+          <div className="flex items-center p-1 rounded-2xl bg-zinc-100 border border-zinc-200 shadow-inner">
+            <button
+              onClick={() => setActiveTab("weekday")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "weekday"
+                  ? "bg-[#154D38] text-white shadow-sm"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Weekdays ({activeTab === "weekday" ? blocks.length : 15})
+            </button>
+            <button
+              onClick={() => setActiveTab("weekend")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "weekend"
+                  ? "bg-[#154D38] text-white shadow-sm"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Weekend ({activeTab === "weekend" ? blocks.length : 8})
+            </button>
+          </div>
+
+          {/* Add Routine Task Button */}
+          <Button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 h-auto rounded-xl text-xs font-bold bg-[#154D38] hover:bg-[#0E3425] text-white shadow-sm transition-all hover:scale-105"
           >
-            Weekdays (15 Blocks)
-          </button>
+            <Plus className="h-3.5 w-3.5 stroke-[3]" />
+            <span>Add Task</span>
+          </Button>
+
+          {/* Reset Defaults Button */}
           <button
-            onClick={() => setActiveTab("weekend")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === "weekend"
-                ? "bg-[#154D38] text-white shadow-sm"
-                : "text-zinc-600 hover:text-zinc-900"
-            }`}
+            onClick={handleResetDefaults}
+            className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-500 hover:text-zinc-800 transition-colors shadow-2xs"
+            title="Reset routine back to default timetable"
           >
-            Weekend (8 Blocks)
+            <RotateCcw className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -280,8 +409,24 @@ export default function RoutinePage() {
             block={block}
             isActive={block.id === activeBlockId}
             onToggle={handleToggle}
+            onEdit={handleOpenEdit}
           />
         ))}
+
+        {filteredBlocks.length === 0 && (
+          <div className="py-12 text-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50">
+            <Clock className="h-8 w-8 text-zinc-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-zinc-600">No routine tasks found in this category.</p>
+            <p className="text-xs text-zinc-400 mt-1">Try selecting another filter or add a new routine task.</p>
+            <Button
+              onClick={handleOpenAdd}
+              className="mt-4 rounded-xl text-xs font-bold bg-[#154D38] hover:bg-[#0E3425] text-white"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Routine Task
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

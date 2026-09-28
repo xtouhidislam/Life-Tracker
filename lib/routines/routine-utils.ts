@@ -526,3 +526,52 @@ export function computeRoutineAggregates(blocks: RoutineBlock[]): RoutineAggrega
     isFullRoutineCompleted,
   };
 }
+
+/**
+ * Calculates duration in minutes between start time and end time (format: HH:MM).
+ * Handles cross-midnight scenarios gracefully.
+ */
+export function calculateDurationMinutes(startTime: string, endTime: string): number {
+  const startMin = timeStringToMinutes(startTime);
+  const endMin = timeStringToMinutes(endTime);
+
+  if (endMin >= startMin) {
+    return endMin - startMin;
+  }
+  // Cross-midnight
+  return 1440 - startMin + endMin;
+}
+
+export const ROUTINE_ACTIVITY_TYPES = [
+  "Spiritual",
+  "Health",
+  "Work",
+  "Office",
+  "Study",
+  "Break",
+  "Knowledge",
+  "Trading",
+  "Sleep",
+  "Education",
+  "Recharge",
+] as const;
+
+export type RoutineActivityType = (typeof ROUTINE_ACTIVITY_TYPES)[number];
+
+export const ROUTINE_ICONS = [
+  "Sunrise",
+  "Dumbbell",
+  "Laptop",
+  "Briefcase",
+  "Coffee",
+  "BookOpen",
+  "Brain",
+  "Utensils",
+  "TrendingUp",
+  "Moon",
+  "GraduationCap",
+  "Users",
+  "Clock",
+  "Zap",
+] as const;
+

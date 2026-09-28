@@ -357,6 +357,7 @@ export interface Database {
           routine_id: string
           title: string
           description: string | null
+          activity_type: string | null
           start_time: string
           end_time: string
           duration_minutes: number
@@ -371,6 +372,7 @@ export interface Database {
           routine_id: string
           title: string
           description?: string | null
+          activity_type?: string | null
           start_time: string
           end_time: string
           duration_minutes: number
@@ -385,6 +387,7 @@ export interface Database {
           routine_id?: string
           title?: string
           description?: string | null
+          activity_type?: string | null
           start_time?: string
           end_time?: string
           duration_minutes?: number

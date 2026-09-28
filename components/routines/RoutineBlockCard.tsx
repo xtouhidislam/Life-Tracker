@@ -19,6 +19,7 @@ import {
   Check,
   Zap,
   Play,
+  Pencil,
 } from "lucide-react";
 import { RoutineBlock, formatTo12Hour } from "@/lib/routines/routine-utils";
 
@@ -26,6 +27,7 @@ interface RoutineBlockCardProps {
   block: RoutineBlock;
   isActive: boolean;
   onToggle: (block: RoutineBlock) => void;
+  onEdit?: (block: RoutineBlock) => void;
   disabled?: boolean;
 }
 
@@ -33,6 +35,7 @@ export function RoutineBlockCard({
   block,
   isActive,
   onToggle,
+  onEdit,
   disabled = false,
 }: RoutineBlockCardProps) {
   const getIcon = (name: string) => {
@@ -202,7 +205,21 @@ export function RoutineBlockCard({
         </div>
 
         {/* Right CTA Area */}
-        <div className="shrink-0 flex flex-col items-end gap-2">
+        <div className="shrink-0 flex items-center gap-1.5 sm:gap-2">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(block);
+              }}
+              className="p-1.5 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 hover:border-zinc-300 text-zinc-500 hover:text-zinc-900 transition-all shadow-2xs"
+              title="Edit routine task"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+
           {isFocusable && !block.is_completed && (
             <Link
               href={`/focus?title=${encodeURIComponent(block.title)}&duration=${Math.min(block.duration_minutes, 60)}`}
@@ -214,7 +231,7 @@ export function RoutineBlockCard({
           )}
 
           {block.is_completed && (
-            <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+            <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1 py-1">
               <Check className="h-3.5 w-3.5" /> Checked
             </span>
           )}
