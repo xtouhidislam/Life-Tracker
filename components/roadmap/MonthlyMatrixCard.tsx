@@ -73,7 +73,7 @@ export function MonthlyMatrixCard({
           : milestone.status === "completed"
           ? "border-zinc-200/90"
           : isLocked
-          ? "border-zinc-200/60 opacity-60"
+          ? "border-zinc-200 bg-zinc-50/50"
           : "border-zinc-200/90 hover:border-zinc-300"
       }`}
     >

@@ -108,7 +108,7 @@ export function RoutineBlockCard({
         isActive
           ? "bg-emerald-50/40 border-[#154D38] shadow-md ring-1 ring-[#154D38]/20"
           : block.is_completed
-          ? "bg-white/80 border-zinc-200/60 opacity-80"
+          ? "bg-zinc-50/50 border-zinc-200"
           : "bg-white border-zinc-200/90 hover:border-zinc-300 hover:shadow-sm"
       }`}
     >
