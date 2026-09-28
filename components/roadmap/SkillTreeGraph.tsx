@@ -17,44 +17,161 @@ interface SkillTreeGraphProps {
   onSelectMonth: (month: number) => void;
 }
 
+// 12-Month Theme Palettes for rich visual variety
+const MONTH_PALETTES: Record<
+  number,
+  {
+    theme: string;
+    lockedContainer: string;
+    tagText: string;
+    titleColor: string;
+    lockIconColor: string;
+    borderAccent: string;
+  }
+> = {
+  1: {
+    theme: "Foundations (Python & DB)",
+    lockedContainer: "bg-emerald-100/70 border-emerald-300 text-zinc-900",
+    tagText: "text-emerald-900 bg-emerald-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-emerald-700",
+    borderAccent: "border-emerald-400",
+  },
+  2: {
+    theme: "Backend Engineering",
+    lockedContainer: "bg-amber-100/70 border-amber-300 text-zinc-900",
+    tagText: "text-amber-900 bg-amber-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-amber-700",
+    borderAccent: "border-amber-400",
+  },
+  3: {
+    theme: "LLM Core & Prompting",
+    lockedContainer: "bg-amber-100/70 border-amber-300 text-zinc-900",
+    tagText: "text-amber-900 bg-amber-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-amber-700",
+    borderAccent: "border-amber-400",
+  },
+  4: {
+    theme: "RAG & Vector Pipelines",
+    lockedContainer: "bg-blue-100/75 border-blue-300/90 text-zinc-900",
+    tagText: "text-blue-900 bg-blue-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-blue-600",
+    borderAccent: "border-blue-400",
+  },
+  5: {
+    theme: "Autonomous Agentic Workflows",
+    lockedContainer: "bg-indigo-100/75 border-indigo-300/90 text-zinc-900",
+    tagText: "text-indigo-900 bg-indigo-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-indigo-600",
+    borderAccent: "border-indigo-400",
+  },
+  6: {
+    theme: "Production Capstone",
+    lockedContainer: "bg-purple-100/75 border-purple-300/90 text-zinc-900",
+    tagText: "text-purple-900 bg-purple-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-purple-600",
+    borderAccent: "border-purple-400",
+  },
+  7: {
+    theme: "Technical Interviews & Hiring",
+    lockedContainer: "bg-sky-100/75 border-sky-300/90 text-zinc-900",
+    tagText: "text-sky-900 bg-sky-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-sky-600",
+    borderAccent: "border-sky-400",
+  },
+  8: {
+    theme: "Zenin AI Services Launch",
+    lockedContainer: "bg-teal-100/75 border-teal-300/90 text-zinc-900",
+    tagText: "text-teal-900 bg-teal-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-teal-600",
+    borderAccent: "border-teal-400",
+  },
+  9: {
+    theme: "Open Source & Paid Clients",
+    lockedContainer: "bg-rose-100/75 border-rose-300/90 text-zinc-900",
+    tagText: "text-rose-900 bg-rose-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-rose-600",
+    borderAccent: "border-rose-400",
+  },
+  10: {
+    theme: "Real Client Conversion",
+    lockedContainer: "bg-orange-100/75 border-orange-300/90 text-zinc-900",
+    tagText: "text-orange-900 bg-orange-200/70",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-orange-600",
+    borderAccent: "border-orange-400",
+  },
+  11: {
+    theme: "Productized Agency Retainers",
+    lockedContainer: "bg-amber-100/80 border-amber-300/90 text-zinc-900",
+    tagText: "text-amber-950 bg-amber-200/80",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-amber-700",
+    borderAccent: "border-amber-500",
+  },
+  12: {
+    theme: "$60K Mastery & Scale",
+    lockedContainer: "bg-emerald-100/80 border-emerald-300/90 text-zinc-900",
+    tagText: "text-emerald-950 bg-emerald-200/80",
+    titleColor: "text-zinc-900",
+    lockIconColor: "text-emerald-700",
+    borderAccent: "border-emerald-500",
+  },
+};
+
 export function SkillTreeGraph({ months, onSelectMonth }: SkillTreeGraphProps) {
-  const getCardStyle = (status: string) => {
+  const getCardStyle = (status: string, month: number) => {
+    const palette = MONTH_PALETTES[month] || MONTH_PALETTES[1];
+
     switch (status) {
       case "completed":
         return {
           container:
-            "bg-emerald-50 border-2 border-emerald-300 text-zinc-900 shadow-2xs hover:border-emerald-400 hover:shadow-sm",
-          monthText: "text-emerald-800",
-          titleText: "text-zinc-900",
-          weeksText: "text-emerald-800",
+            "bg-emerald-50 border-2 border-emerald-400 text-zinc-900 shadow-2xs hover:border-emerald-500 hover:shadow-sm",
+          monthBadge: "text-emerald-900 bg-emerald-100/90 px-1.5 py-0.5 rounded-md",
+          titleText: "text-zinc-900 font-black",
+          weeksText: "text-emerald-800 font-bold",
           xpText: "text-emerald-800 font-black",
+          icon: <CheckCircle2 className="h-4 w-4 text-emerald-600 stroke-[2.5]" />,
         };
       case "in_progress":
         return {
+          // Beating/pulsing heartbeat glow effect requested by user
           container:
-            "bg-white border-2 border-[#154D38] shadow-md ring-2 ring-[#154D38]/15 hover:shadow-lg",
-          monthText: "text-[#154D38]",
+            "bg-white border-2 border-[#154D38] shadow-[0_0_22px_rgba(21,77,56,0.35)] ring-2 ring-[#154D38] animate-pulse hover:shadow-xl hover:scale-105",
+          monthBadge: "text-white bg-[#154D38] px-1.5 py-0.5 rounded-md shadow-xs",
           titleText: "text-zinc-950 font-black",
-          weeksText: "text-zinc-700 font-bold",
+          weeksText: "text-zinc-800 font-bold",
           xpText: "text-amber-700 font-black",
+          icon: <Sparkles className="h-4 w-4 text-[#154D38] stroke-[2.5] animate-spin" />,
         };
       case "available":
         return {
           container:
-            "bg-amber-50/70 border-2 border-amber-300 text-zinc-900 shadow-2xs hover:border-amber-400",
-          monthText: "text-amber-800",
-          titleText: "text-zinc-900",
+            "bg-amber-50/80 border-2 border-amber-300 text-zinc-900 shadow-2xs hover:border-amber-400",
+          monthBadge: "text-amber-900 bg-amber-200/80 px-1.5 py-0.5 rounded-md",
+          titleText: "text-zinc-900 font-bold",
           weeksText: "text-zinc-700 font-semibold",
           xpText: "text-amber-700 font-bold",
+          icon: <Lock className="h-3.5 w-3.5 text-amber-600" />,
         };
       default:
+        // Locked: Slightly darker card tone with unique phase color variation
         return {
-          container:
-            "bg-zinc-50 border border-zinc-200/90 text-zinc-800 hover:border-zinc-300 hover:bg-zinc-100/60",
-          monthText: "text-zinc-600",
-          titleText: "text-zinc-800",
-          weeksText: "text-zinc-500 font-semibold",
-          xpText: "text-zinc-600 font-semibold",
+          container: `${palette.lockedContainer} border shadow-2xs hover:scale-102 transition-all`,
+          monthBadge: `${palette.tagText} px-1.5 py-0.5 rounded-md font-black`,
+          titleText: `${palette.titleColor} font-bold`,
+          weeksText: "text-zinc-600 font-medium",
+          xpText: "text-zinc-700 font-bold",
+          icon: <Lock className={`h-3.5 w-3.5 ${palette.lockIconColor}`} />,
         };
     }
   };
@@ -76,11 +193,11 @@ export function SkillTreeGraph({ months, onSelectMonth }: SkillTreeGraphProps) {
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
             <span className="h-2 w-2 rounded-full bg-emerald-500" /> Completed
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-[#154D38] border border-emerald-300">
-            <span className="h-2 w-2 rounded-full bg-[#154D38] animate-pulse" /> Active
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-[#154D38] border border-emerald-300 animate-pulse">
+            <span className="h-2 w-2 rounded-full bg-[#154D38] animate-ping" /> Active Sprint
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200">
-            <span className="h-2 w-2 rounded-full bg-zinc-400" /> Locked
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-200 text-zinc-800 border border-zinc-300 font-bold">
+            <span className="h-2 w-2 rounded-full bg-zinc-500" /> Locked (Color-Coded)
           </span>
         </div>
       </div>
@@ -154,32 +271,26 @@ export function SkillTreeGraph({ months, onSelectMonth }: SkillTreeGraphProps) {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {months.map((m) => {
-              const styles = getCardStyle(m.status);
+              const styles = getCardStyle(m.status, m.month);
               return (
                 <div
                   key={m.month}
                   onClick={() => onSelectMonth(m.month)}
-                  className={`cursor-pointer p-3.5 rounded-xl border flex flex-col justify-between transition-all hover:scale-105 ${styles.container}`}
+                  className={`cursor-pointer p-3.5 rounded-2xl flex flex-col justify-between transition-all ${styles.container}`}
                 >
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs font-mono font-black">
-                      <span className={styles.monthText}>
+                      <span className={styles.monthBadge}>
                         M{m.month < 10 ? `0${m.month}` : m.month}
                       </span>
-                      {m.status === "completed" ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
-                      ) : m.status === "in_progress" ? (
-                        <Sparkles className="h-4 w-4 text-[#154D38] stroke-[2.5]" />
-                      ) : (
-                        <Lock className="h-3.5 w-3.5 text-zinc-400" />
-                      )}
+                      {styles.icon}
                     </div>
-                    <div className={`text-xs font-bold line-clamp-2 ${styles.titleText}`}>
+                    <div className={`text-xs leading-snug line-clamp-2 ${styles.titleText}`}>
                       {m.title.split("(")[0]}
                     </div>
                   </div>
 
-                  <div className="pt-3 flex items-center justify-between text-[11px] border-t border-zinc-200/50 mt-2">
+                  <div className="pt-2.5 flex items-center justify-between text-[11px] border-t border-black/5 mt-2">
                     <span className={styles.weeksText}>
                       {m.weeks.filter((w) => w.is_completed).length}/{m.weeks.length} Weeks
                     </span>
